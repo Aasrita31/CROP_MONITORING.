@@ -8,6 +8,7 @@ from typing import List
 
 router = APIRouter(prefix="/fields", tags=["Fields"])
 
+
 @router.get("", response_model=List[FieldBase])
 def get_fields(db: Session = Depends(get_db)):
     return FieldService.get_all_fields(db)
