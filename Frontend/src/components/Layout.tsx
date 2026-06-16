@@ -13,17 +13,20 @@ import { AddFieldModal } from "@/components/AddFieldModal";
 /* ---------------- Sidebar Data ---------------- */
 const SIDEBAR_ITEMS = [
   { label: "Dashboard", icon: Grid3x3, path: "/" },
+  { label: "Digital Twin", icon: Hexagon, path: "/digital-twin" },
   { label: "Farm Overview", icon: MapPin, path: "/farm-overview" },
   { label: "Live Monitoring", icon: Activity, path: "/live-monitoring" },
   { label: "Disease Detection", icon: Microscope, path: "/disease-detection" },
   { label: "Pest Monitoring", icon: Bug, path: "/pest-monitoring" },
   { label: "Nutrient Analysis", icon: FlaskConical, path: "/nutrient-analysis" },
   { label: "Water Management", icon: Droplets, path: "/water-management" },
-  { label: "Drone Monitoring", icon: Plane, path: "/drone-monitoring" },
+  { label: "Satellite Analysis", icon: Plane, path: "/satellite-analysis" },
   { label: "Weather Intelligence", icon: CloudSun, path: "/weather-intelligence" },
+  { label: "Historical Comparisons", icon: CalIcon, path: "/historical-comparisons" },
+  { label: "Field Health Ranking", icon: Target, path: "/field-health-ranking" },
   { label: "Yield Prediction", icon: TrendingUp, path: "/yield-prediction" },
+  { label: "AI Recommendations", icon: Sparkles, path: "/ai-recommendations" },
   { label: "Harvest Planner", icon: Wheat, path: "/harvest-planner" },
-  { label: "AI Crop Doctor", icon: Bot, path: "/ai-crop-doctor" },
   { label: "Reports", icon: FileBarChart, path: "/reports" },
   { label: "Settings", icon: SettingsIcon, path: "/settings" },
 ];
@@ -60,7 +63,7 @@ function WeatherChip({ weatherData }: { weatherData: any }) {
     <div className="hidden md:flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-card text-sm">
       <Sun className="h-4 w-4 text-nutrient" />
       <span className="font-semibold">{current.temp}°C</span>
-      <span className="text-muted-foreground">Ludhiana</span>
+      <span className="text-muted-foreground">{current.location}</span>
       <span className="text-muted-foreground">·</span>
       <Droplets className="h-3.5 w-3.5 text-water" />
       <span className="text-muted-foreground">{current.humidity}</span>
@@ -83,7 +86,7 @@ export function Header() {
           </div>
           <div className="leading-tight">
             <div className="text-[15px] font-semibold tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>AgriTwin <span className="text-primary">Vision</span></div>
-            <div className="text-[10.5px] text-muted-foreground -mt-0.5">Precision Agriculture · India Grid</div>
+            <div className="text-[10.5px] text-muted-foreground -mt-0.5">Precision Agriculture · AP Paddy Grid</div>
           </div>
         </Link>
 
@@ -91,18 +94,12 @@ export function Header() {
 
         <Select label="Active Grid" icon={MapPin} value={farm} onChange={(f) => {
           setFarm(f);
-          if (f === "Punjab Wheat Belt") setCrop("Wheat");
-          else if (f === "Maharashtra Grape Orchards") setCrop("Grapes");
-          else if (f === "Vinh Long Estate") setCrop("Dragon Fruit");
         }}
-          options={["Punjab Wheat Belt", "Maharashtra Grape Orchards", "Vinh Long Estate"]} />
+          options={["East Godavari", "West Godavari", "Krishna", "Konaseema", "Nellore"]} />
         <Select label="Crop Profile" icon={Sprout} value={crop} onChange={(c) => {
           setCrop(c);
-          if (c === "Wheat") setFarm("Punjab Wheat Belt");
-          else if (c === "Grapes") setFarm("Maharashtra Grape Orchards");
-          else if (c === "Dragon Fruit") setFarm("Vinh Long Estate");
         }}
-          options={["Wheat", "Grapes", "Dragon Fruit"]} />
+          options={["Paddy"]} />
         <DateFilter />
 
         <div className="ml-auto flex items-center gap-2">
@@ -128,17 +125,53 @@ export function Header() {
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [intelligenceOpen, setIntelligenceOpen] = useState(true);
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
 
   return (
     <aside
       className="sticky top-16 self-start h-[calc(100vh-4rem)] hidden lg:flex flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-out"
-      style={{ width: collapsed ? 72 : 248 }}
+      style={{ width: collapsed ? 72 : 280 }}
     >
       <div className="p-3 flex-1 overflow-y-auto scrollbar-thin">
-        <div className={`text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground px-3 py-2 ${collapsed ? "text-center" : ""}`}>
-          {collapsed ? "··" : "Crop Analytics"}
+        {!collapsed && (
+          <div className="mb-4">
+            <button 
+              onClick={() => setIntelligenceOpen(!intelligenceOpen)}
+              className="flex items-center justify-between w-full text-[10px] font-bold uppercase tracking-[0.14em] text-primary px-3 py-2 bg-primary/5 border border-primary/10 rounded-lg hover:bg-primary/10 transition"
+            >
+              <div className="flex items-center gap-2"><Bot className="h-3 w-3" /> Farm Intelligence</div>
+              <ChevronDown className={`h-3 w-3 transition-transform ${intelligenceOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {intelligenceOpen && (
+              <div className="mt-2 space-y-1 pl-2">
+                {[
+                  { label: "High Risk Fields", icon: Target, count: 2, color: "text-disease", bg: "bg-disease/10" },
+                  { label: "Disease Alerts", icon: Microscope, count: 1, color: "text-disease", bg: "bg-disease/10" },
+                  { label: "Nutrient Alerts", icon: FlaskConical, count: 3, color: "text-nutrient", bg: "bg-nutrient/10" },
+                  { label: "Water Stress Alerts", icon: Droplets, count: 5, color: "text-water", bg: "bg-water/10" },
+                  { label: "Pest Alerts", icon: Bug, count: 0, color: "text-pest", bg: "bg-pest/10" },
+                  { label: "Yield Warnings", icon: TrendingUp, count: 1, color: "text-muted-foreground", bg: "bg-accent" },
+                ].map((alert) => {
+                  const Icon = alert.icon;
+                  return (
+                    <button key={alert.label} className="w-full flex items-center justify-between px-3 h-8 rounded-lg text-xs hover:bg-sidebar-accent transition text-sidebar-foreground/80">
+                      <div className="flex items-center gap-2">
+                        <Icon className={`h-3.5 w-3.5 ${alert.color}`} />
+                        <span>{alert.label}</span>
+                      </div>
+                      {alert.count > 0 && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${alert.bg} ${alert.color}`}>{alert.count}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className={`text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground px-3 py-2 mt-2 ${collapsed ? "text-center" : ""}`}>
+          {collapsed ? "··" : "Analytics & Digital Twin"}
         </div>
         <nav className="space-y-0.5">
           {SIDEBAR_ITEMS.map((it) => {
@@ -159,7 +192,7 @@ export function Sidebar() {
       <div className="p-3 border-t border-sidebar-border">
         <button onClick={() => setCollapsed(!collapsed)}
           className="w-full flex items-center justify-center gap-2 h-9 rounded-lg border border-sidebar-border hover:bg-sidebar-accent text-xs text-muted-foreground">
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /> Collapse</>}
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /> Collapse Sidebar</>}
         </button>
       </div>
     </aside>

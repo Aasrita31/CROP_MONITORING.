@@ -5,7 +5,7 @@ import {
   ChevronRight, CloudRain, CloudSun, Compass, Droplets, FileBarChart, FlaskConical,
   Grid3x3, Hexagon, Leaf, MapPin, Menu, Microscope,
   Plane, Play, Search, Send, Settings as SettingsIcon, Sparkles, Sprout, Sun, Target,
-  Thermometer, TrendingUp, Wind, Wheat, X, Calendar as CalIcon, Globe
+  Thermometer, TrendingUp, Wind, Wheat, X, Calendar as CalIcon, Globe, CheckCircle2
 } from "lucide-react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line,
@@ -22,7 +22,11 @@ import fruitWater from "@/assets/dragonfruit-water.png";
 import fruitDisease from "@/assets/dragonfruit-disease.png";
 import { INDIA_STATES_DATA } from "@/components/india-states-data";
 import { useApp } from "@/context/AppContext";
+import { useDashboardContext } from "@/context/DashboardContext";
+import { useVillageSearch } from "@/hooks/useVillageSearch";
 import { lazy, Suspense } from "react";
+
+const ApRiceBowlSection = lazy(() => import("@/components/ApRiceBowlComponents").then(m => ({ default: m.ApRiceBowlSection })));
 
 function ClientOnly({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -110,6 +114,108 @@ function statusDot(s: FieldStatus) {
   return STATUS_META[s].bg;
 }
 
+const getNdviColor = (ndvi: number) => {
+  if (ndvi >= 0.75) return "#064e3b";
+  if (ndvi >= 0.60) return "#10b981";
+  if (ndvi >= 0.40) return "#eab308";
+  if (ndvi >= 0.25) return "#f97316";
+  return "#ef4444";
+};
+
+/* ---------------- Village Search Panel ---------------- */
+function VillageSearchPanel() {
+  const [query, setQuery] = useState("");
+  const { triggerSearch, loading } = useVillageSearch();
+  const { searchQuery, villageAnalysis } = useDashboardContext();
+  const [stepIndex, setStepIndex] = useState(0);
+
+  const STEPS = [
+    "Contacting OpenStreetMap Geocoding API...",
+    "Geolocating village coordinates...",
+    "Contacting Sentinel-2 Satellite registry...",
+    "Retrieving latest spectral bands...",
+    "Calculating NDVI indices...",
+    "Running machine learning health classifications...",
+    "Updating AP Paddy monitoring digital twin..."
+  ];
+
+  useEffect(() => {
+    let interval: any;
+    if (loading) {
+      setStepIndex(0);
+      interval = setInterval(() => {
+        setStepIndex(prev => (prev < STEPS.length - 1 ? prev + 1 : prev));
+      }, 900);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (query.trim()) {
+      triggerSearch(query);
+    }
+  };
+
+  return (
+    <div className="bg-card border border-border p-5 rounded-2xl shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-elevated)] transition duration-300 relative overflow-hidden">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary animate-pulse" /> Village Satellite Monitoring
+          </h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Enter any village name in Andhra Pradesh to automatically retrieve Sentinel-2 images and run crop diagnostics.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex gap-2 max-w-md w-full">
+          <input
+            type="text"
+            placeholder="Search village (e.g. Kadiyam, Bhimadole, Movva...)"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            disabled={loading}
+            className="flex-1 px-3.5 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ background: "var(--gradient-primary)" }}
+            className="px-4 py-2 text-sm font-semibold text-primary-foreground rounded-lg shadow-sm hover:opacity-95 disabled:opacity-50 transition flex items-center gap-1.5"
+          >
+            <Activity className="h-4 w-4" /> Analyze
+          </button>
+        </form>
+      </div>
+
+      {loading && (
+        <div className="mt-4 p-4 bg-accent/40 rounded-xl border border-border flex items-center gap-4 animate-pulse">
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+          </span>
+          <div className="text-xs font-semibold text-primary">
+            {STEPS[stepIndex]}
+          </div>
+        </div>
+      )}
+
+      {!loading && searchQuery && villageAnalysis && (
+        <div className="mt-4 p-3.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-xs flex flex-wrap items-center justify-between gap-3 text-emerald-500 font-medium">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500" />
+            <span>Analyzed village <strong>{searchQuery}</strong>. Sentinel-2 spectral images loaded successfully.</span>
+          </div>
+          <div className="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-600 font-semibold">
+            Source: {villageAnalysis.source} ({new Date(villageAnalysis.captureDate).toLocaleDateString()})
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- Main Dashboard Component ---------------- */
 function Dashboard() {
   const [selected, setSelected] = useState<string | null>("B");
@@ -123,12 +229,73 @@ function Dashboard() {
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const { farm, setFarm, crop, activeFarm, weatherData, nationalNdvi } = useApp();
+  const { searchCoords, searchQuery, villageAnalysis } = useDashboardContext();
 
+  const mapCenter = useMemo<[number, number]>(() => {
+    if (searchCoords) return searchCoords;
+    return activeFarm?.center || [16.5, 80.6];
+  }, [searchCoords, activeFarm]);
+
+  const mapFields = useMemo(() => {
+    if (searchCoords && (!activeFarm || !activeFarm.fields || activeFarm.fields.length === 0 || searchQuery.toLowerCase() !== farm.toLowerCase())) {
+      // Generate procedural fields for searched coordinates
+      return Array.from({ length: 8 }).map((_, i) => {
+        const fNdvi = 0.45 + Math.random() * 0.42;
+        const lat = searchCoords[0] + (Math.random() - 0.5) * 0.012;
+        const lng = searchCoords[1] + (Math.random() - 0.5) * 0.012;
+        
+        const size = 0.0016;
+        const coords: [number, number][] = [
+          [lat - size, lng - size],
+          [lat + size, lng - size],
+          [lat + size, lng + size],
+          [lat - size, lng + size]
+        ];
+        
+        const statusVal = fNdvi > 0.75 ? "Healthy" : (fNdvi > 0.60 ? "Healthy" : (fNdvi > 0.40 ? "Nutrient Stress" : "Water Stress"));
+        const dominant = statusVal === "Healthy" ? "healthy" : (statusVal === "Water Stress" ? "water" : "nutrient");
+        const yieldNum = parseFloat((2.2 + fNdvi * 4.5).toFixed(1));
+        
+        return {
+          id: `search-f${i+1}`,
+          name: `Field ${String.fromCharCode(65+i)} — ${searchQuery} Paddy Block`,
+          coordinates: coords,
+          ndvi: parseFloat(fNdvi.toFixed(2)),
+          health: Math.round(50 + fNdvi * 50),
+          dominant: dominant,
+          status: statusVal,
+          color: getNdviColor(fNdvi),
+          area: `${(1.2 + Math.random() * 2.8).toFixed(1)} Hectares`,
+          stage: "Tillering",
+          yield: yieldNum,
+          harvestIn: statusVal === "Healthy" ? 18 : 25,
+          rec: "Progressing optimally. Maintain telemetry schedules.",
+          mix: statusVal === "Healthy" 
+            ? { healthy: 70, nutrient: 10, water: 10, disease: 5, pest: 5 }
+            : (statusVal === "Water Stress"
+              ? { healthy: 30, nutrient: 15, water: 45, disease: 5, pest: 5 }
+              : { healthy: 35, nutrient: 40, water: 15, disease: 5, pest: 5 }),
+          npk: {
+            n: statusVal === "Nutrient Stress" ? 42 : 78,
+            p: statusVal === "Nutrient Stress" ? 48 : 68,
+            k: statusVal === "Nutrient Stress" ? 38 : 72
+          },
+          disease: statusVal === "Disease Risk" ? 34 : 6,
+          water: statusVal === "Water Stress" ? 38 : 74,
+          surveyNo: `SUR-${2000 + i}`,
+          village: `${searchQuery} Paddy Block ${i + 1}`,
+          aiConfidence: `${Math.floor(88 + Math.random() * 10)}%`,
+          lastScan: `${Math.floor(Math.random() * 12 + 1)} hours ago`
+        };
+      });
+    }
+    return activeFarm?.fields || [];
+  }, [searchCoords, searchQuery, activeFarm, farm]);
 
   const field = useMemo(() => {
-    if (!activeFarm) return null;
-    return activeFarm.fields.find((f: any) => f.id === selected) || activeFarm.fields[0];
-  }, [selected, activeFarm]);
+    if (!mapFields || mapFields.length === 0) return null;
+    return mapFields.find((f: any) => f.id === selected) || mapFields[0];
+  }, [selected, mapFields]);
 
   const handleStateClick = (stateId: string, stateName: string) => {
     if (stateId === "pb") setFarm("Punjab Wheat Belt");
@@ -140,12 +307,7 @@ function Dashboard() {
 
   return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-          {/* KPI Cards Row */}
-          <section className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
-            {activeFarm.kpis.map((k: any) => (
-              <KpiCard key={k.label} k={k} />
-            ))}
-          </section>
+          <VillageSearchPanel />
 
           <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 space-y-6">
@@ -153,14 +315,24 @@ function Dashboard() {
                 <ClientOnly>
                   <Suspense fallback={<div className="w-full h-full bg-[#1c2128] flex items-center justify-center text-muted-foreground">Loading interactive map...</div>}>
                     <DashboardInteractiveMap 
-                      center={activeFarm.center} 
-                      fields={activeFarm.fields} 
+                      center={mapCenter} 
+                      fields={mapFields} 
                       onFieldClick={setSelected} 
                     />
                   </Suspense>
                 </ClientOnly>
               </div>
               <CropQualityStrip activeFarm={activeFarm} />
+              
+
+      {/* AP RICE BOWL INTELLIGENCE MODULE */}
+              <div className="mt-8 pt-6 border-t border-border">
+                <ClientOnly>
+                  <Suspense fallback={<div className="h-[400px] w-full flex items-center justify-center text-muted-foreground bg-card rounded-2xl border border-border">Loading AP Rice Bowl Intelligence...</div>}>
+                    <ApRiceBowlSection />
+                  </Suspense>
+                </ClientOnly>
+              </div>
             </div>
             <div className="space-y-6">
               <FieldPanel field={field} crop={crop} />
@@ -168,9 +340,6 @@ function Dashboard() {
               <WeatherPanel data={weatherData} />
             </div>
           </section>
-
-          <BottomAnalytics trendData={activeFarm.charts.healthTrend} crop={crop} />
-
           <footer className="pt-6 pb-2 text-xs text-muted-foreground flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Leaf className="h-3.5 w-3.5 text-primary" />
@@ -698,6 +867,16 @@ function CropQualityStrip({ activeFarm }: { activeFarm: any }) {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {activeFarm.qualityFruit.map((f: any) => {
           const meta = STATUS_META[f.status as FieldStatus];
+          
+          let imageSrc = f.img;
+          if (activeFarm.crop === "Dragon Fruit" || activeFarm.cropText?.includes("Dragon Fruit")) {
+             if (f.status === 'healthy') imageSrc = fruitHealthy;
+             else if (f.status === 'nutrient') imageSrc = fruitNutrient;
+             else if (f.status === 'water') imageSrc = fruitWater;
+             else if (f.status === 'disease' || f.status === 'pest') imageSrc = fruitDisease;
+             else imageSrc = fruitHealthy;
+          }
+
           return (
             <div key={f.id} className="group relative rounded-xl border border-border bg-gradient-to-b from-accent/20 to-card p-3 overflow-hidden hover:shadow-[var(--shadow-elevated)] transition">
               <div className={`absolute top-2 right-2 text-[9px] font-semibold px-1.5 py-0.5 rounded ${meta.bg}/15 ${meta.color}`}>
@@ -706,7 +885,7 @@ function CropQualityStrip({ activeFarm }: { activeFarm: any }) {
               <div className="text-[11px] font-bold">{f.label}</div>
               <div className="relative h-28 grid place-items-center mt-1">
                 <div className="absolute bottom-1 h-2 w-16 rounded-full bg-foreground/10 blur-sm" />
-                <img src={f.img} alt={`${f.label} ${activeFarm.crop}`} loading="lazy" width={256} height={256}
+                <img src={imageSrc} alt={`${f.label} ${activeFarm.crop}`} loading="lazy" width={256} height={256}
                   className="object-contain drop-shadow-xl"
                   style={{ width: `${f.size}%`, maxHeight: "100%", animation: "float-fruit 5s ease-in-out infinite", animationDelay: `${Number(f.id.charCodeAt(0)) * 0.05}s` }} />
               </div>

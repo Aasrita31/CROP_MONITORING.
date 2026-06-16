@@ -1,7 +1,89 @@
-import React, { useEffect, useRef, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import { Search, Leaf, X, Layers } from "lucide-react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polygon, Circle, SVGOverlay, ImageOverlay } from "react-leaflet";
+import { Search, Leaf, X, Layers, Target, Droplets, FlaskConical, Sprout, TrendingUp, Calendar, Activity, Bot, ChevronRight, ChevronLeft, MapPin, CheckCircle2, AlertTriangle, AlertCircle, Skull, Bug } from "lucide-react";
 import satelliteImg from "@/assets/satellite-farm.jpg";
+import { useApp } from "@/context/AppContext";
+import { useDashboardContext } from "../context/DashboardContext";
+
+function MapSearchBox({ 
+  onSelectLocation, 
+  theme = "dark" 
+}: { 
+  onSelectLocation: (lat: number, lon: number, name: string) => void,
+  theme?: "dark" | "light"
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const debounce = setTimeout(async () => {
+      if (searchQuery.trim().length > 2) {
+        setIsLoading(true);
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`);
+          const data = await res.json();
+          setSuggestions(data);
+          setShowSuggestions(true);
+        } catch (e) {
+          console.error(e);
+        }
+        setIsLoading(false);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 500);
+    return () => clearTimeout(debounce);
+  }, [searchQuery]);
+
+  const handleSelect = (s: any) => {
+    setSearchQuery(s.display_name);
+    setShowSuggestions(false);
+    onSelectLocation(parseFloat(s.lat), parseFloat(s.lon), s.display_name);
+  };
+
+  const isDark = theme === "dark";
+
+  return (
+    <div className={`relative flex flex-col w-full ${isDark ? 'bg-[#0b0e14] border-white/10' : 'bg-card/90 backdrop-blur border-border'} border rounded-lg shadow-lg pointer-events-auto transition-all`}>
+      <div className="flex items-center gap-2 h-12 px-3">
+        <Leaf className={`h-5 w-5 ${isDark ? 'text-[#84cc16]' : 'text-primary'}`} />
+        <input 
+          placeholder="Search location..." 
+          className={`flex-1 bg-transparent text-sm ${isDark ? 'text-white' : 'text-foreground'} outline-none`}
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          onFocus={() => { if(suggestions.length > 0) setShowSuggestions(true); }}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+        />
+        {searchQuery && (
+          <button onClick={() => {setSearchQuery(""); setSuggestions([]); setShowSuggestions(false);}} className={`p-1 ${isDark ? 'hover:bg-white/10' : 'hover:bg-accent'} rounded transition`}>
+             <X className={`h-4 w-4 ${isDark ? 'text-white/50' : 'text-muted-foreground'}`} />
+          </button>
+        )}
+        <button className="p-1">
+          {isLoading ? <span className={`h-4 w-4 block animate-spin rounded-full border-2 ${isDark ? 'border-white/50' : 'border-primary'} border-t-transparent`} /> : <Search className={`h-4 w-4 ${isDark ? 'text-white/50' : 'text-muted-foreground'}`} />}
+        </button>
+      </div>
+      
+      {showSuggestions && suggestions.length > 0 && (
+        <div className={`flex flex-col border-t ${isDark ? 'border-white/10' : 'border-border'} py-2 max-h-60 overflow-y-auto`}>
+          {suggestions.map((s, i) => (
+            <button 
+              key={i}
+              className={`text-left px-4 py-2 text-sm ${isDark ? 'text-white/80 hover:bg-white/10 hover:text-white' : 'text-muted-foreground hover:bg-accent hover:text-foreground'} transition line-clamp-2 leading-tight`}
+              onClick={() => handleSelect(s)}
+            >
+              {s.display_name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 import "leaflet/dist/leaflet.css";
 import "@geoman-io/leaflet-geoman-free";
@@ -57,50 +139,111 @@ export function DashboardInteractiveMap({
   onFieldClick: (id: string) => void
 }) {
   const mapRef = useRef<L.Map | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
-  const [dynamicFields, setDynamicFields] = useState<any[]>(fields);
   const [mapCenter, setMapCenter] = useState<[number, number]>(center);
+  const [activeLayer, setActiveLayer] = useState<string>("satellite");
+  const [timeLine, setTimeLine] = useState<number>(100);
+  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [isLayersOpen, setIsLayersOpen] = useState(false);
+  const { highlightedFields } = useApp();
+  const { searchCoords, searchQuery, villageAnalysis } = useDashboardContext();
+
+  // Helper to enrich fields with polygons
+  const enrichFields = (rawFields: any[], cCenter: [number, number]) => {
+    return (rawFields || []).map(f => {
+      if (f.polygonCoords) return f;
+      if (f.coordinates) {
+        return { 
+          ...f, 
+          lat: f.coordinates[0][0], 
+          lng: f.coordinates[0][1], 
+          polygonCoords: f.coordinates,
+          hotspots: [] 
+        };
+      }
+      const fLat = cCenter[0] + ((f.y || 50) - 50) * 0.0005;
+      const fLng = cCenter[1] + ((f.x || 50) - 50) * 0.0005;
+      
+      const numPoints = 6 + Math.floor(Math.random() * 4);
+      const radius = 0.0015 + Math.random() * 0.001;
+      const coords: [number, number][] = [];
+      for (let i = 0; i < numPoints; i++) {
+        const angle = (i / numPoints) * 2 * Math.PI;
+        const r = radius * (0.8 + Math.random() * 0.4);
+        coords.push([fLat + r * Math.cos(angle), fLng + r * Math.sin(angle)]);
+      }
+
+      const hotspots = [];
+      const mixes = Object.entries(f.mix || { healthy: 60, water: 20, disease: 20 });
+      for (const [key, val] of mixes) {
+        if (key !== "healthy" && (val as number) > 5) {
+          hotspots.push({
+            type: key,
+            lat: fLat + (Math.random() - 0.5) * radius * 0.8,
+            lng: fLng + (Math.random() - 0.5) * radius * 0.8,
+            radius: ((val as number) / 100) * radius * 0.7 * 111320
+          });
+        }
+      }
+
+      return { ...f, lat: fLat, lng: fLng, polygonCoords: coords, hotspots };
+    });
+  };
+
+  const [dynamicFields, setDynamicFields] = useState<any[]>(() => enrichFields(fields, center));
 
   // Sync prop center/fields with local state when they change
   useEffect(() => {
     setMapCenter(center);
-    setDynamicFields(fields);
+    setDynamicFields(enrichFields(fields, center));
   }, [center, fields]);
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    setIsSearching(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
-      const data = await res.json();
-      if (data && data.length > 0) {
-        const lat = parseFloat(data[0].lat);
-        const lon = parseFloat(data[0].lon);
-        setMapCenter([lat, lon]);
-        if (mapRef.current) {
-          mapRef.current.flyTo([lat, lon], 14, { duration: 1.5 });
-        }
-
-        // Simulate nearby agricultural fields for the newly searched location
-        const simulatedFields = Array.from({ length: 5 }).map((_, i) => {
-          const dom = Math.random() > 0.5 ? 'healthy' : Math.random() > 0.5 ? 'water' : 'disease';
-          return {
-            id: `sim-${i}`,
-            name: `${searchQuery} Plot ${i + 1}`,
-            x: 50 + (Math.random() - 0.5) * 40,
-            y: 50 + (Math.random() - 0.5) * 40,
-            dominant: dom,
-            health: Math.floor(70 + Math.random() * 25),
-            rec: "Simulated agricultural field data based on satellite index.",
-          };
-        });
-        setDynamicFields(simulatedFields);
-      }
-    } catch (e) {
-      console.error(e);
+  const handleLocationSelect = (lat: number, lon: number, name: string) => {
+    setMapCenter([lat, lon]);
+    if (mapRef.current) {
+      mapRef.current.flyTo([lat, lon], 14, { duration: 1.5 });
     }
-    setIsSearching(false);
+
+    // Simulate nearby agricultural fields for the newly searched location
+    const simulatedFields = Array.from({ length: 5 }).map((_, i) => {
+      const dom = Math.random() > 0.5 ? 'healthy' : Math.random() > 0.5 ? 'water' : 'disease';
+      
+      const fLat = lat + (Math.random() - 0.5) * 0.01;
+      const fLng = lon + (Math.random() - 0.5) * 0.01;
+      const radius = 0.0015 + Math.random() * 0.001;
+      const numPoints = 6 + Math.floor(Math.random() * 4);
+      const coords: [number, number][] = [];
+      for (let j = 0; j < numPoints; j++) {
+        const angle = (j / numPoints) * 2 * Math.PI;
+        const r = radius * (0.8 + Math.random() * 0.4);
+        coords.push([fLat + r * Math.cos(angle), fLng + r * Math.sin(angle)]);
+      }
+
+      return {
+        id: `sim-${Date.now()}-${i}`,
+        name: `${name.split(',')[0]} Plot ${i + 1}`,
+        lat: fLat,
+        lng: fLng,
+        polygonCoords: coords,
+        hotspots: [
+          { type: dom, lat: fLat + (Math.random() - 0.5)*radius*0.5, lng: fLng + (Math.random() - 0.5)*radius*0.5, radius: 30 }
+        ],
+        dominant: dom,
+        health: Math.floor(70 + Math.random() * 25),
+        rec: "Simulated agricultural field data based on satellite index.",
+        area: `${(Math.random() * 5 + 1).toFixed(1)} Hectares`,
+        surveyNo: `SUR-${1000 + Math.floor(Math.random() * 9000)}`,
+        village: name.split(',')[0],
+        aiConfidence: `${Math.floor(88 + Math.random() * 10)}%`,
+        lastScan: "Just now",
+        disease: Math.floor(Math.random() * 30),
+        water: Math.floor(Math.random() * 50),
+        stage: "Vegetative",
+        yield: (Math.random() * 2 + 3).toFixed(1),
+        harvestIn: Math.floor(Math.random() * 60 + 10),
+        npk: { n: 60 + Math.random()*30, p: 50 + Math.random()*30, k: 50 + Math.random()*30 }
+      };
+    });
+    setDynamicFields(prev => [...prev, ...simulatedFields]);
   };
 
   useEffect(() => {
@@ -136,87 +279,262 @@ export function DashboardInteractiveMap({
           attribution="Tiles &copy; Esri"
         />
         
-        {/* Render fields as markers/polygons */}
-        {dynamicFields.map((f: any, idx: number) => {
-          // Fake lat/lng near the center for visual demo
-          const lat = mapCenter[0] + (f.y - 50) * 0.0005;
-          const lng = mapCenter[1] + (f.x - 50) * 0.0005;
+        {searchCoords && villageAnalysis?.imageUrl && (
+          <ImageOverlay
+            url={villageAnalysis.imageUrl}
+            bounds={[
+              [searchCoords[0] - 0.015, searchCoords[1] - 0.015],
+              [searchCoords[0] + 0.015, searchCoords[1] + 0.015]
+            ]}
+            opacity={0.8}
+          />
+        )}
+        
+        {/* Render fields as polygons with internal mixed conditions */}
+        {(dynamicFields || []).map((f: any) => {
+          const isSelected = selectedFieldId === f.id;
+          const isHighlighted = (highlightedFields || []).includes(f.id);
           
-          // Custom HTML Icon for field status
-          const markerHtml = `
-            <div class="relative group cursor-pointer w-full h-full">
-              <div class="absolute inset-0 bg-card/90 backdrop-blur border border-border rounded-lg shadow-lg flex items-center px-2 py-1 transform -translate-y-full hover:scale-110 transition whitespace-nowrap">
-                <span class="h-2.5 w-2.5 rounded-full mr-1.5 ${f.dominant === 'healthy' ? 'bg-healthy' : f.dominant === 'water' ? 'bg-water' : 'bg-disease'} animate-pulse"></span>
-                <span class="text-[10px] font-bold text-foreground">${f.name}</span>
-              </div>
-              <div class="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-card border border-border rotate-45"></div>
-            </div>
-          `;
-          
-          const icon = L.divIcon({
-            html: markerHtml,
-            className: 'bg-transparent',
-            iconSize: [120, 30],
-            iconAnchor: [60, 30],
-          });
+          // Colors mapping
+          const getBaseColor = (dom: string) => {
+            switch(dom) {
+              case 'healthy': return '#10b981';
+              case 'nutrient': return '#f59e0b';
+              case 'water': return '#3b82f6';
+              case 'disease': return '#ef4444';
+              case 'pest': return '#8b5cf6';
+              default: return '#10b981';
+            }
+          };
+
+          const opacity = activeLayer === 'satellite' ? 0.3 : 0.6;
+          const baseColor = getBaseColor(f.dominant);
+          const strokeColor = isHighlighted ? '#fde047' : isSelected ? '#ffffff' : baseColor; // Yellow highlight
+
+          // Safeguard: Ensure polygonCoords exist before rendering
+          if (!f.polygonCoords || f.polygonCoords.length === 0) return null;
+
+          // Render Label Overlay
+          const bounds = L.latLngBounds(f.polygonCoords);
+          const fcenter = bounds.getCenter();
 
           return (
-            <Marker 
-              key={f.id} 
-              position={[lat, lng]} 
-              icon={icon}
-              eventHandlers={{
-                click: () => onFieldClick(f.id),
-              }}
-            >
-              <Popup className="rounded-xl overflow-hidden shadow-xl">
-                <div className="p-1">
-                  <h3 className="font-bold text-sm">{f.name}</h3>
-                  <div className="text-xs text-muted-foreground mb-2 mt-1">{f.rec}</div>
-                  <div className="flex justify-between items-center bg-accent/40 rounded p-1.5 px-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider">Health</span>
-                    <span className="text-[11px] font-bold text-healthy">{f.health}/100</span>
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
+            <React.Fragment key={f.id}>
+              <Polygon 
+                positions={f.polygonCoords}
+                className={isHighlighted ? "animate-pulse" : ""}
+                pathOptions={{ 
+                  fillColor: baseColor, 
+                  fillOpacity: isHighlighted ? opacity + 0.2 : opacity, 
+                  color: strokeColor, 
+                  weight: isHighlighted ? 4 : isSelected ? 3 : 1 
+                }}
+                eventHandlers={{
+                  click: () => {
+                    setSelectedFieldId(f.id);
+                    onFieldClick(f.id);
+                    if (mapRef.current) mapRef.current.flyTo(center, 15);
+                  }
+                }}
+              />
+              
+              {/* Mixed Condition Hotspots */}
+              {activeLayer !== 'boundary' && f.hotspots?.map((hs: any, idx: number) => (
+                <Circle 
+                  key={idx}
+                  center={[hs.lat, hs.lng]}
+                  radius={hs.radius * (timeLine / 100)} // Shrink hotspots when timeline goes to past/future
+                  pathOptions={{
+                    fillColor: getBaseColor(hs.type),
+                    fillOpacity: 0.7,
+                    stroke: false
+                  }}
+                  interactive={false}
+                />
+              ))}
+
+              {/* Field Label Icon */}
+              <Marker position={fcenter} interactive={false} icon={L.divIcon({
+                html: `<div class="bg-card/90 backdrop-blur-sm border ${isSelected ? 'border-primary' : 'border-border'} rounded px-1.5 py-0.5 text-[9px] font-bold shadow-md whitespace-nowrap -translate-x-1/2 -translate-y-1/2">${f.name}</div>`,
+                className: 'bg-transparent'
+              })} />
+            </React.Fragment>
           );
         })}
       </MapContainer>
 
-      {/* Floating UI Elements matching Geoman reference */}
-      <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2 pointer-events-none">
-        <div className="flex items-center gap-2 h-10 px-3 bg-card/90 backdrop-blur border border-border rounded-lg shadow-lg pointer-events-auto">
-          <Leaf className="h-4 w-4 text-primary" />
-          <input 
-            placeholder="Search farm location..." 
-            className="flex-1 bg-transparent text-sm text-foreground outline-none w-48"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            disabled={isSearching}
-          />
-          <button onClick={handleSearch} disabled={isSearching} className="p-1 hover:bg-accent rounded">
-            {isSearching ? <span className="h-4 w-4 block animate-spin rounded-full border-2 border-primary border-t-transparent" /> : <Search className="h-4 w-4 text-muted-foreground" />}
+      <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2 pointer-events-none w-64 md:w-80">
+        <MapSearchBox onSelectLocation={handleLocationSelect} theme="light" />
+        
+        {/* Map Layers Dropdown */}
+        <div className="relative pointer-events-auto mt-2">
+          <button 
+            onClick={() => setIsLayersOpen(!isLayersOpen)}
+            className="w-full flex items-center justify-between gap-2 h-10 px-4 bg-card/90 backdrop-blur border border-border rounded-lg shadow-lg hover:bg-accent text-sm font-medium text-foreground transition"
+          >
+            <div className="flex items-center gap-2">
+              <Layers className="h-4 w-4 text-primary" />
+              Layer: <span className="capitalize">{activeLayer}</span>
+            </div>
           </button>
+          
+          {isLayersOpen && (
+            <div className="absolute top-full mt-1 w-full bg-card/95 backdrop-blur border border-border rounded-lg shadow-xl overflow-hidden z-50">
+              {[
+                { id: 'satellite', label: 'Satellite RGB' },
+                { id: 'ndvi', label: 'NDVI (Vegetation)' },
+                { id: 'health', label: 'Crop Health' },
+                { id: 'disease', label: 'Disease Risk' },
+                { id: 'water', label: 'Water Stress' },
+                { id: 'boundary', label: 'Field Boundaries Only' },
+              ].map(layer => (
+                <button
+                  key={layer.id}
+                  onClick={() => { setActiveLayer(layer.id); setIsLayersOpen(false); }}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition flex items-center gap-2 ${activeLayer === layer.id ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
+                >
+                  <span className={`h-2 w-2 rounded-full ${activeLayer === layer.id ? 'bg-primary' : 'bg-transparent border border-muted-foreground'}`} />
+                  {layer.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-4 z-[400] pointer-events-none">
-        <button className="flex items-center gap-2 h-10 px-4 bg-card/90 backdrop-blur border border-border rounded-lg shadow-lg hover:bg-accent text-sm font-medium text-foreground transition pointer-events-auto">
-          <Layers className="h-4 w-4" />
-          Map Layers
-        </button>
-      </div>
+      {/* Floating Field Panel */}
+      {selectedFieldId && (
+        <FloatingFieldPanel 
+          field={dynamicFields.find(f => f.id === selectedFieldId)} 
+          onClose={() => setSelectedFieldId(null)} 
+        />
+      )}
 
-      <div className="absolute bottom-4 right-4 z-[400] text-[10px] font-semibold bg-card/80 backdrop-blur border border-border px-2 py-1 rounded shadow-sm text-muted-foreground">
-        Live GIS Data • Leaflet Geoman
+      {/* Map Timeline Control */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[400] w-[90%] max-w-xl bg-card/90 backdrop-blur border border-border p-3 rounded-2xl shadow-xl pointer-events-auto">
+        <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
+          <span>Past 90 Days</span>
+          <span>Past 30 Days</span>
+          <span className="text-primary px-2 py-0.5 bg-primary/10 rounded-md">Live (Current)</span>
+          <span>Forecast +30D</span>
+        </div>
+        <div className="relative">
+          <input 
+            type="range" min="0" max="130" value={timeLine} 
+            onChange={(e) => setTimeLine(Number(e.target.value))}
+            className="w-full h-2 bg-accent rounded-lg appearance-none cursor-pointer accent-primary" 
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function FloatingFieldPanel({ field, onClose }: { field: any, onClose: () => void }) {
+  if (!field) return null;
+  
+  const npk = field.npk || { n: 72, p: 65, k: 80 };
+
+  return (
+    <div className="absolute top-4 left-4 bottom-24 w-80 bg-card/95 backdrop-blur-xl border border-border shadow-2xl rounded-2xl z-[500] flex flex-col overflow-hidden animate-in slide-in-from-left-4 pointer-events-auto">
+      <div className="p-4 border-b border-border flex items-start justify-between bg-gradient-to-br from-primary/10 to-transparent">
+        <div>
+          <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Field Intelligence</div>
+          <h2 className="text-xl font-bold tracking-tight">{field.name}</h2>
+          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-1">
+            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {field.village}</span>
+            <span>·</span>
+            <span>{field.area}</span>
+          </div>
+        </div>
+        <button onClick={onClose} className="p-1.5 rounded-full hover:bg-black/10 transition"><X className="h-4 w-4" /></button>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-4 space-y-5 scrollbar-thin">
+        {/* Core Metrics Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-accent/40 rounded-xl p-3 border border-border">
+            <div className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1"><Target className="h-3 w-3" /> Health Score</div>
+            <div className="text-2xl font-bold mt-1 text-healthy">{field.health}<span className="text-sm text-muted-foreground font-normal">/100</span></div>
+          </div>
+          <div className="bg-accent/40 rounded-xl p-3 border border-border">
+            <div className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1"><Droplets className="h-3 w-3" /> Water Stress</div>
+            <div className="text-xl font-bold mt-1 text-water">{field.water}%</div>
+          </div>
+          <div className="bg-accent/40 rounded-xl p-3 border border-border">
+            <div className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1"><Bug className="h-3 w-3" /> Disease Prob.</div>
+            <div className="text-xl font-bold mt-1 text-disease">{field.disease}%</div>
+          </div>
+          <div className="bg-accent/40 rounded-xl p-3 border border-border">
+            <div className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Est. Yield</div>
+            <div className="text-xl font-bold mt-1 text-foreground">{field.yield} <span className="text-xs">t/ha</span></div>
+          </div>
+        </div>
+
+        {/* NPK Status */}
+        <div className="space-y-2">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+            <span className="flex items-center gap-1"><FlaskConical className="h-3 w-3" /> NPK Macronutrients</span>
+            <span className="text-primary">{field.aiConfidence} Confidence</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: 'N', val: Math.round(npk.n), color: 'bg-emerald-500' },
+              { label: 'P', val: Math.round(npk.p), color: 'bg-blue-500' },
+              { label: 'K', val: Math.round(npk.k), color: 'bg-amber-500' }
+            ].map(n => (
+              <div key={n.label} className="bg-accent/30 rounded-lg p-2 text-center border border-border">
+                <div className="text-[10px] font-bold text-muted-foreground">{n.label}</div>
+                <div className="text-sm font-bold mt-0.5">{n.val}%</div>
+                <div className="h-1 w-full bg-accent mt-1.5 rounded-full overflow-hidden">
+                  <div className={`h-full ${n.color}`} style={{ width: `${n.val}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Additional Details */}
+        <div className="bg-card rounded-xl border border-border divide-y divide-border text-xs">
+          <div className="p-3 flex justify-between items-center">
+            <span className="text-muted-foreground">Survey Number</span>
+            <span className="font-semibold">{field.surveyNo}</span>
+          </div>
+          <div className="p-3 flex justify-between items-center">
+            <span className="text-muted-foreground">Growth Stage</span>
+            <span className="font-semibold text-primary">{field.stage || 'Vegetative'}</span>
+          </div>
+          <div className="p-3 flex justify-between items-center">
+            <span className="text-muted-foreground">Harvest Date</span>
+            <span className="font-semibold">{field.harvestIn ? `In ${field.harvestIn} days` : 'N/A'}</span>
+          </div>
+          <div className="p-3 flex justify-between items-center">
+            <span className="text-muted-foreground">Last Satellite Scan</span>
+            <span className="font-semibold">{field.lastScan}</span>
+          </div>
+        </div>
+
+        {/* AI Recommendation */}
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-3">
+          <div className="flex items-center gap-2 text-[11px] font-bold text-primary uppercase mb-2">
+            <Bot className="h-3.5 w-3.5" /> AI Recommendation
+          </div>
+          <p className="text-xs leading-relaxed text-foreground/90">{field.rec}</p>
+        </div>
       </div>
     </div>
   );
 }
 
 export function AddFieldModalContent({ onClose }: { onClose: () => void }) {
+  const mapRef = useRef<L.Map | null>(null);
+
+  const handleLocationSelect = (lat: number, lon: number, name: string) => {
+    if (mapRef.current) {
+      mapRef.current.flyTo([lat, lon], 15, { duration: 1.5 });
+    }
+  };
+
   // Existing modal logic...
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-[#1c2128]">
@@ -235,6 +553,7 @@ export function AddFieldModalContent({ onClose }: { onClose: () => void }) {
           className="w-full h-full"
           zoomControl={true}
           ref={(map: any) => {
+            mapRef.current = map;
             if (map && map.pm) {
               map.pm.addControls({
                 position: 'leftcenter',
@@ -259,12 +578,8 @@ export function AddFieldModalContent({ onClose }: { onClose: () => void }) {
         </MapContainer>
 
         {/* Floating UI Elements from screenshot */}
-        <div className="absolute top-4 left-4 z-[400] w-64">
-          <div className="flex items-center gap-2 h-10 px-3 bg-[#15191e] border border-white/10 rounded-lg shadow-lg">
-            <Leaf className="h-4 w-4 text-green-500" />
-            <input placeholder="Search location" className="flex-1 bg-transparent text-sm text-white outline-none" />
-            <Search className="h-4 w-4 text-white/50" />
-          </div>
+        <div className="absolute top-4 left-4 z-[400] w-64 md:w-80 pointer-events-auto">
+          <MapSearchBox onSelectLocation={handleLocationSelect} theme="dark" />
         </div>
 
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[400] flex flex-col items-center pointer-events-none">

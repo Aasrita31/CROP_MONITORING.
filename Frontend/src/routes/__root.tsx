@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/error-reporting";
 import { AppProvider } from "@/context/AppContext";
 import { Layout } from "@/components/Layout";
+import { DashboardProvider } from "@/context/DashboardContext";
 
 function NotFoundComponent() {
   return (
@@ -124,10 +125,12 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-        <Layout>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-        </Layout>
+        <DashboardProvider>
+          <Layout>
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <Outlet />
+          </Layout>
+        </DashboardProvider>
       </AppProvider>
     </QueryClientProvider>
   );
