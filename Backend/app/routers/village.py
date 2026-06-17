@@ -8,6 +8,7 @@ from app.schemas.response_models import (
     VillageBase, FieldBase, VillageSearchRequest, 
     VillageSearchResponse, VillageAnalysisResult
 )
+from app.services.sentinel_service import SentinelService
 from typing import List, Dict, Any
 import requests
 
@@ -108,48 +109,35 @@ def search_village(payload: VillageSearchRequest, db: Session = Depends(get_db))
 
 @analysis_router.get("/village", response_model=VillageAnalysisResult)
 def get_analysis_village(name: str = None, village_id: int = None, db: Session = Depends(get_db)):
-    village = None
-    if village_id:
+    # 1. Resolve location
+    location = None
+    if name:
+        location = SentinelService.get_village_location(name)
+    elif village_id:
         village = db.query(Village).filter(Village.id == village_id).first()
-    elif name:
-        village = db.query(Village).filter(Village.name.ilike(f"%{name}%")).first()
-        
-    if village:
-        y_val = 5.8
-        try:
-            y_val = float(village.yield_pred.split(' ')[0])
-        except:
-            pass
+        if village:
+            location = SentinelService.get_village_location(village.name)
             
-        risk_val = 12
-        try:
-            cleaned = village.disease_risk.replace('Low (', '').replace('Moderate (', '').replace('High (', '').replace('Severe (', '').replace('%)', '')
-            risk_val = int(cleaned)
-        except:
-            pass
+    if not location:
+        location = SentinelService.get_village_location("Kadiyam")
 
-        stress_val = 15
-        if village.water_stress == "None":
-            stress_val = 8
-        elif village.water_stress == "Low":
-            stress_val = 18
-        elif village.water_stress == "Moderate":
-            stress_val = 35
-        else:
-            stress_val = 78
+    # 2. Fetch Bands
+    bands = SentinelService.fetch_sentinel2_bands(location['boundingbox'])
+    
+    # 3. Calculate NDVI
+    from app.services.ndvi_service import NdviService
+    ndvi_array = NdviService.calculate_ndvi(bands['b4'], bands['b8'])
+    
+    # 4. Generate Metrics
+    metrics = NdviService.get_village_metrics(ndvi_array)
+    
+    # Estimate yield based on health score (e.g. 100 health = ~7.5 t/ha, 0 = ~1.0 t/ha)
+    yield_pred = round(1.0 + (metrics['health_score'] / 100.0) * 6.5, 1)
 
-        return {
-            "ndvi": village.ndvi,
-            "healthScore": village.health,
-            "diseaseRisk": risk_val,
-            "waterStress": stress_val,
-            "yieldPrediction": y_val
-        }
-        
     return {
-        "ndvi": 0.68,
-        "healthScore": 82,
-        "diseaseRisk": 15,
-        "waterStress": 22,
-        "yieldPrediction": 5.4
+        "ndvi": metrics['avg_ndvi'],
+        "healthScore": metrics['health_score'],
+        "diseaseRisk": metrics['critical_pct'] + (metrics['water_stress_pct'] * 0.5), # heuristic
+        "waterStress": metrics['water_stress_pct'] + (metrics['critical_pct'] * 0.2), # heuristic
+        "yieldPrediction": yield_pred
     }

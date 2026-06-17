@@ -348,50 +348,7 @@ export function ApRiceBowlSection() {
         </div>
       </div>
 
-      {/* Village Comparison Table connected to GET /api/dashboard/comparison */}
-      <div className="mt-6 bg-card border border-border p-5 rounded-2xl shadow-sm">
-        <h3 className="font-bold mb-4 text-lg">Village Comparison (ML Classification)</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm min-w-[800px]">
-            <thead className="bg-accent/40 text-muted-foreground uppercase text-[10px] font-semibold tracking-wider">
-              <tr>
-                <th className="p-3 rounded-tl-lg">Village</th>
-                <th className="p-3">District</th>
-                <th className="p-3">Avg NDVI</th>
-                <th className="p-3">Health Score</th>
-                <th className="p-3">Disease Risk</th>
-                <th className="p-3">Water Stress</th>
-                <th className="p-3">Harvest Ready</th>
-                <th className="p-3 rounded-tr-lg">Yield Predict</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {dashLoading ? (
-                <tr>
-                  <td colSpan={8} className="p-8 text-center text-xs text-muted-foreground">Loading village comparisons from backend...</td>
-                </tr>
-              ) : comparison.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="p-8 text-center text-xs text-muted-foreground">No comparison data available.</td>
-                </tr>
-              ) : (
-                comparison.map(v => (
-                  <tr key={v.id} className="hover:bg-accent/20 transition cursor-pointer" onClick={() => handleVillageClick(v)}>
-                    <td className="p-3 font-semibold flex items-center gap-2"><MapPin className="h-4 w-4 text-primary"/> {v.name}</td>
-                    <td className="p-3 text-muted-foreground">{v.district}</td>
-                    <td className="p-3 font-bold" style={{ color: getNdviColor(v.ndvi) }}>{v.ndvi}</td>
-                    <td className="p-3">{v.health}/100</td>
-                    <td className={`p-3 font-medium ${v.diseaseRisk.includes('High') || v.diseaseRisk.includes('Severe') ? 'text-red-500' : 'text-foreground'}`}>{v.diseaseRisk}</td>
-                    <td className="p-3">{v.waterStress}</td>
-                    <td className="p-3">{v.harvestReady}</td>
-                    <td className="p-3 font-medium text-emerald-500">{v.yieldPred}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+
       {/* District Rankings Table connected to GET /api/districts */}
       <div className="mt-6 bg-gradient-to-br from-card to-accent/30 border border-border p-5 rounded-2xl shadow-sm">
         <h3 className="font-bold mb-4 text-lg flex items-center gap-2"><Target className="h-5 w-5 text-primary"/> District Rankings (Yield & Risk)</h3>

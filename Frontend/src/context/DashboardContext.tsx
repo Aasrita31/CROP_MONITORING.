@@ -13,6 +13,8 @@ interface DashboardContextType {
   setSearchQuery: (query: string) => void;
   villageAnalysis: any;
   setVillageAnalysis: (analysis: any) => void;
+  searchFields: any[];
+  setSearchFields: (fields: any[]) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -24,6 +26,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [searchCoords, setSearchCoords] = useState<[number, number] | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [villageAnalysis, setVillageAnalysis] = useState<any>(null);
+  const [searchFields, setSearchFields] = useState<any[]>([]);
 
   return (
     <DashboardContext.Provider
@@ -39,7 +42,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         searchQuery,
         setSearchQuery,
         villageAnalysis,
-        setVillageAnalysis
+        setVillageAnalysis,
+        searchFields,
+        setSearchFields
       }}
     >
       {children}

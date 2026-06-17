@@ -114,7 +114,7 @@ export function AiAssistantDrawer({ onClose, farm, crop }: { onClose: () => void
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             />
-            <button onClick={handleSend} className="h-8 w-8 rounded-lg grid place-items-center text-primary-foreground" style={{ background: "var(--gradient-primary)" }}>
+            <button onClick={() => handleSend()} className="h-8 w-8 rounded-lg grid place-items-center text-primary-foreground" style={{ background: "var(--gradient-primary)" }}>
               <Send className="h-4 w-4" />
             </button>
           </div>

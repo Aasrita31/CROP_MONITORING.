@@ -17,9 +17,10 @@ const ToggleGroup = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Root> &
     VariantProps<typeof toggleVariants>
 >(({ className, variant, size, children, type = "multiple", ...props }, ref) => (
+  // @ts-ignore: radix typing mismatch for type/value in wrapper
   <ToggleGroupPrimitive.Root
     ref={ref}
-    type={type}
+    type={type as "multiple"}
     className={cn("flex items-center justify-center gap-1", className)}
     {...props}
   >

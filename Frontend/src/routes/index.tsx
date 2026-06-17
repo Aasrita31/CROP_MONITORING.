@@ -229,7 +229,7 @@ function Dashboard() {
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const { farm, setFarm, crop, activeFarm, weatherData, nationalNdvi } = useApp();
-  const { searchCoords, searchQuery, villageAnalysis } = useDashboardContext();
+  const { searchCoords, searchQuery, villageAnalysis, searchFields } = useDashboardContext();
 
   const mapCenter = useMemo<[number, number]>(() => {
     if (searchCoords) return searchCoords;
@@ -237,60 +237,11 @@ function Dashboard() {
   }, [searchCoords, activeFarm]);
 
   const mapFields = useMemo(() => {
-    if (searchCoords && (!activeFarm || !activeFarm.fields || activeFarm.fields.length === 0 || searchQuery.toLowerCase() !== farm.toLowerCase())) {
-      // Generate procedural fields for searched coordinates
-      return Array.from({ length: 8 }).map((_, i) => {
-        const fNdvi = 0.45 + Math.random() * 0.42;
-        const lat = searchCoords[0] + (Math.random() - 0.5) * 0.012;
-        const lng = searchCoords[1] + (Math.random() - 0.5) * 0.012;
-        
-        const size = 0.0016;
-        const coords: [number, number][] = [
-          [lat - size, lng - size],
-          [lat + size, lng - size],
-          [lat + size, lng + size],
-          [lat - size, lng + size]
-        ];
-        
-        const statusVal = fNdvi > 0.75 ? "Healthy" : (fNdvi > 0.60 ? "Healthy" : (fNdvi > 0.40 ? "Nutrient Stress" : "Water Stress"));
-        const dominant = statusVal === "Healthy" ? "healthy" : (statusVal === "Water Stress" ? "water" : "nutrient");
-        const yieldNum = parseFloat((2.2 + fNdvi * 4.5).toFixed(1));
-        
-        return {
-          id: `search-f${i+1}`,
-          name: `Field ${String.fromCharCode(65+i)} — ${searchQuery} Paddy Block`,
-          coordinates: coords,
-          ndvi: parseFloat(fNdvi.toFixed(2)),
-          health: Math.round(50 + fNdvi * 50),
-          dominant: dominant,
-          status: statusVal,
-          color: getNdviColor(fNdvi),
-          area: `${(1.2 + Math.random() * 2.8).toFixed(1)} Hectares`,
-          stage: "Tillering",
-          yield: yieldNum,
-          harvestIn: statusVal === "Healthy" ? 18 : 25,
-          rec: "Progressing optimally. Maintain telemetry schedules.",
-          mix: statusVal === "Healthy" 
-            ? { healthy: 70, nutrient: 10, water: 10, disease: 5, pest: 5 }
-            : (statusVal === "Water Stress"
-              ? { healthy: 30, nutrient: 15, water: 45, disease: 5, pest: 5 }
-              : { healthy: 35, nutrient: 40, water: 15, disease: 5, pest: 5 }),
-          npk: {
-            n: statusVal === "Nutrient Stress" ? 42 : 78,
-            p: statusVal === "Nutrient Stress" ? 48 : 68,
-            k: statusVal === "Nutrient Stress" ? 38 : 72
-          },
-          disease: statusVal === "Disease Risk" ? 34 : 6,
-          water: statusVal === "Water Stress" ? 38 : 74,
-          surveyNo: `SUR-${2000 + i}`,
-          village: `${searchQuery} Paddy Block ${i + 1}`,
-          aiConfidence: `${Math.floor(88 + Math.random() * 10)}%`,
-          lastScan: `${Math.floor(Math.random() * 12 + 1)} hours ago`
-        };
-      });
+    if (searchFields && searchFields.length > 0) {
+      return searchFields;
     }
     return activeFarm?.fields || [];
-  }, [searchCoords, searchQuery, activeFarm, farm]);
+  }, [searchFields, activeFarm]);
 
   const field = useMemo(() => {
     if (!mapFields || mapFields.length === 0) return null;
@@ -304,6 +255,17 @@ function Dashboard() {
     
     setMapMode("farm");
   };
+
+  if (!activeFarm) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-primary">
+          <Activity className="h-8 w-8 animate-pulse" />
+          <div className="text-sm font-medium text-muted-foreground">Initializing Digital Twin...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
@@ -322,8 +284,8 @@ function Dashboard() {
                   </Suspense>
                 </ClientOnly>
               </div>
-              <CropQualityStrip activeFarm={activeFarm} />
               
+
 
       {/* AP RICE BOWL INTELLIGENCE MODULE */}
               <div className="mt-8 pt-6 border-t border-border">
