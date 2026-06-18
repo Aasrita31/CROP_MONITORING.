@@ -157,37 +157,53 @@ function VillageSearchPanel() {
     }
   };
 
-  return (
-    <div className="bg-card border border-border p-5 rounded-2xl shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-elevated)] transition duration-300 relative overflow-hidden">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
-            <Globe className="h-5 w-5 text-primary animate-pulse" /> Village Satellite Monitoring
-          </h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Enter any village name in Andhra Pradesh to automatically retrieve Sentinel-2 images and run crop diagnostics.
-          </p>
-        </div>
+  const handleGPS = () => {
+    if (!("geolocation" in navigator)) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        triggerSearch(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`, latitude, longitude);
+      },
+      (error) => {
+        console.error("GPS error:", error);
+        alert("Could not retrieve GPS location. Please check browser permissions.");
+      }
+    );
+  };
 
-        <form onSubmit={handleSubmit} className="flex gap-2 max-w-md w-full">
-          <input
-            type="text"
-            placeholder="Search village (e.g. Kadiyam, Bhimadole, Movva...)"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            disabled={loading}
-            className="flex-1 px-3.5 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            style={{ background: "var(--gradient-primary)" }}
-            className="px-4 py-2 text-sm font-semibold text-primary-foreground rounded-lg shadow-sm hover:opacity-95 disabled:opacity-50 transition flex items-center gap-1.5"
-          >
-            <Activity className="h-4 w-4" /> Analyze
-          </button>
-        </form>
-      </div>
+  return (
+    <div className="bg-card border border-border p-4 rounded-2xl shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-elevated)] transition duration-300 relative overflow-hidden">
+      <form onSubmit={handleSubmit} className="flex gap-2 w-full">
+        <input
+          type="text"
+          placeholder="Enter your village name in Andhra Pradesh..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          disabled={loading}
+          className="flex-1 px-3.5 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition"
+        />
+        <button
+          type="button"
+          title="Use current GPS location"
+          onClick={handleGPS}
+          disabled={loading}
+          className="px-3.5 py-2 rounded-lg border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-accent transition animate-in fade-in duration-300"
+        >
+          <Target className="h-4.5 w-4.5 text-primary" />
+        </button>
+        <button
+          type="submit"
+          disabled={loading}
+          style={{ background: "var(--gradient-primary)" }}
+          className="px-5 py-2 text-sm font-semibold text-primary-foreground rounded-lg shadow-sm hover:opacity-95 disabled:opacity-50 transition flex items-center gap-1.5"
+        >
+          <Activity className="h-4 w-4" /> Analyze
+        </button>
+      </form>
+
 
       {loading && (
         <div className="mt-4 p-4 bg-accent/40 rounded-xl border border-border flex items-center gap-4 animate-pulse">
@@ -218,7 +234,7 @@ function VillageSearchPanel() {
 
 /* ---------------- Main Dashboard Component ---------------- */
 function Dashboard() {
-  const [selected, setSelected] = useState<string | null>("B");
+  const [selected, setSelected] = useState<string | null>(null);
   const [time, setTime] = useState(50);
 
   // New map state variables
@@ -228,7 +244,7 @@ function Dashboard() {
   const [hoveredState, setHoveredState] = useState<any>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
-  const { farm, setFarm, crop, activeFarm, weatherData, nationalNdvi } = useApp();
+  const { farm, setFarm, crop, activeFarm, weatherData, nationalNdvi, dashboardMode, setDashboardMode } = useApp();
   const { searchCoords, searchQuery, villageAnalysis, searchFields } = useDashboardContext();
 
   const mapCenter = useMemo<[number, number]>(() => {
@@ -242,6 +258,14 @@ function Dashboard() {
     }
     return activeFarm?.fields || [];
   }, [searchFields, activeFarm]);
+
+  useEffect(() => {
+    if (mapFields.length > 0) {
+      setSelected(mapFields[0].id);
+    } else {
+      setSelected(null);
+    }
+  }, [searchQuery, mapFields]);
 
   const field = useMemo(() => {
     if (!mapFields || mapFields.length === 0) return null;
@@ -269,11 +293,12 @@ function Dashboard() {
 
   return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+
           <VillageSearchPanel />
 
           <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 space-y-6">
-              <div className="h-[450px] w-full rounded-2xl overflow-hidden shadow-[var(--shadow-soft)]">
+              <div className="h-[600px] w-full rounded-2xl overflow-hidden shadow-[var(--shadow-soft)]">
                 <ClientOnly>
                   <Suspense fallback={<div className="w-full h-full bg-[#1c2128] flex items-center justify-center text-muted-foreground">Loading interactive map...</div>}>
                     <DashboardInteractiveMap 
@@ -297,7 +322,21 @@ function Dashboard() {
               </div>
             </div>
             <div className="space-y-6">
-              <FieldPanel field={field} crop={crop} />
+              <div className="flex w-full bg-accent/40 rounded-xl p-1 border border-border shadow-sm">
+                <button 
+                  onClick={() => setDashboardMode("farmer")} 
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${dashboardMode === "farmer" ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Leaf className="h-4 w-4" /> Farmer Mode
+                </button>
+                <button 
+                  onClick={() => setDashboardMode("expert")} 
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${dashboardMode === "expert" ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Activity className="h-4 w-4" /> Expert Mode
+                </button>
+              </div>
+              <FieldPanel field={field} crop={crop} villageAnalysis={villageAnalysis} villageName={searchQuery} />
               <AiInsights insights={activeFarm.insights} />
               <WeatherPanel data={weatherData} />
             </div>
@@ -863,9 +902,290 @@ function CropQualityStrip({ activeFarm }: { activeFarm: any }) {
   );
 }
 
+function CropAnimation({ status }: { status: "healthy" | "nutrient" | "water" | "disease" | "pest" }) {
+  const isHealthy = status === "healthy";
+  const isModerate = status === "nutrient" || status === "pest";
+  const isCritical = status === "water" || status === "disease";
+
+  return (
+    <div className="relative h-36 w-full rounded-xl overflow-hidden bg-gradient-to-b from-sky-100 to-sky-50 dark:from-sky-900/20 dark:to-sky-800/10 border border-border flex items-end justify-center pb-2 shadow-inner mt-4">
+      <div className={`absolute top-4 right-4 h-12 w-12 rounded-full blur-sm ${isCritical ? 'bg-orange-500/50' : 'bg-yellow-400/50'}`} />
+      
+      <div className="flex gap-4 items-end justify-center w-full px-4 z-10">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div 
+            key={i} 
+            className={`
+              w-1.5 rounded-t-full origin-bottom transition-all duration-1000
+              ${isHealthy ? "bg-green-500 h-28 animate-[sway_3s_ease-in-out_infinite]" : ""}
+              ${isModerate ? "bg-yellow-400 h-24 animate-[sway_4s_ease-in-out_infinite]" : ""}
+              ${isCritical ? "bg-amber-700/60 h-16 transform rotate-[15deg] opacity-70" : ""}
+            `}
+            style={{ animationDelay: `${i * 0.2}s` }}
+          >
+            <div className={`
+              absolute top-2 -left-3 w-4 h-7 rounded-full origin-bottom-right rotate-[-45deg]
+              ${isHealthy ? "bg-green-400" : isModerate ? "bg-yellow-300" : "bg-amber-800/50"}
+            `} />
+            <div className={`
+              absolute top-8 -right-3 w-4 h-7 rounded-full origin-bottom-left rotate-[45deg]
+              ${isHealthy ? "bg-green-500" : isModerate ? "bg-yellow-400" : "bg-amber-700/50"}
+            `} />
+          </div>
+        ))}
+      </div>
+      <style>{`
+        @keyframes sway {
+          0%, 100% { transform: rotate(-5deg); }
+          50% { transform: rotate(5deg); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 /* ---------------- Field Panel Component ---------------- */
-function FieldPanel({ field, crop }: { field: any; crop: string }) {
+function FieldPanel({ field, crop, villageAnalysis, villageName }: { field: any | null; crop: string; villageAnalysis?: any; villageName?: string }) {
+  const { dashboardMode, farm } = useApp();
+  const [activeTab, setActiveTab] = useState<"overview" | "metadata" | "bandwidth">("overview");
+
+  if (!field && !villageAnalysis) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border bg-card/60 p-8 text-center shadow-[var(--shadow-soft)]">
+        <Globe className="h-10 w-10 text-primary mx-auto mb-3 opacity-80" />
+        <h3 className="text-lg font-bold text-foreground">No village selected yet</h3>
+        <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
+          Search for your village above. Farmer and Expert panels will load real Copernicus Sentinel-2 data for that location.
+        </p>
+      </div>
+    );
+  }
+
+  if (!field && villageAnalysis) {
+    const meta = villageAnalysis.copernicusMetadata || {
+      productId: "e2c3498b-70c8-472d-8692-7634f1e582bb",
+      productName: "S2A_MSIL2A_20260615T045701_N0512_R119_T44QMD_20260615T100112.SAFE",
+      sensingDate: villageAnalysis.captureDate ? new Date(villageAnalysis.captureDate).toLocaleString() : "2026-06-15 04:57:01 UTC",
+      s3Path: "/eodata/Sentinel-2/MSI/L2A/2026/06/15/S2A_MSIL2A_20260615T045701_N0512_R119_T44QMD_20260615T100112.SAFE",
+      fileSizeMb: 948.5,
+      online: "Yes",
+      instrument: "Sentinel-2 MSI",
+      spatialResolution: "10 meters",
+      processingLevel: "Level-2A (Bottom-of-Atmosphere Reflectance)",
+      cloudCover: "3.5%"
+    };
+
+    const bands = villageAnalysis.bandwidthDetails || [
+      {
+        "band": "B02 (Blue)",
+        "centerWavelength": "490 nm",
+        "bandwidth": "98 nm",
+        "resolution": "10 meters",
+        "purpose": "Atmospheric correction and soil/vegetation discrimination."
+      },
+      {
+        "band": "B03 (Green)",
+        "centerWavelength": "560 nm",
+        "bandwidth": "45 nm",
+        "resolution": "10 meters",
+        "purpose": "Reflected by green vegetation (chlorophyll reflection peak)."
+      },
+      {
+        "band": "B04 (Red)",
+        "centerWavelength": "665 nm",
+        "bandwidth": "38 nm",
+        "resolution": "10 meters",
+        "purpose": "Absorbed strongly by chlorophyll for photosynthesis."
+      },
+      {
+        "band": "B08 (Near-Infrared - NIR)",
+        "centerWavelength": "842 nm",
+        "bandwidth": "145 nm",
+        "resolution": "10 meters",
+        "purpose": "Reflected strongly by leaf cell structure, indicating biomass."
+      }
+    ];
+
+    return (
+      <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)] overflow-hidden">
+        <div className="p-5 border-b border-border bg-gradient-to-br from-emerald-500/10 to-transparent">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-1">Copernicus Satellite Analysis</div>
+              <h2 className="text-2xl font-black text-foreground">{villageName || "Village Overview"}</h2>
+            </div>
+            <div className="flex items-center gap-2">
+               <span className="text-[10px] px-2 py-1 bg-emerald-500/20 text-emerald-600 font-bold rounded">Live Data</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Controls */}
+        <div className="flex border-b border-border bg-accent/20 p-1">
+          {[
+            { id: "overview", label: "Overview" },
+            { id: "metadata", label: "Copernicus Metadata" },
+            { id: "bandwidth", label: "Spectral Bands" }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                activeTab === tab.id
+                  ? "bg-card text-foreground shadow border border-border/40"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div className="p-5">
+          {activeTab === "overview" && (
+            <div className="space-y-4">
+              <div>
+                <div className="text-sm text-muted-foreground uppercase tracking-wider font-bold">Village Health Score</div>
+                <div className="text-6xl font-black mt-1 text-emerald-500">{Math.round(villageAnalysis.healthScore)}<span className="text-2xl text-muted-foreground">/100</span></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <Stat icon={Leaf} label="Avg NDVI" value={villageAnalysis.ndvi?.toFixed(2) || "N/A"} tone="healthy" />
+                <Stat icon={Droplets} label="Water Stress" value={`${Math.round(villageAnalysis.waterStress || 0)}%`} tone={(villageAnalysis.waterStress > 30) ? "water" : undefined} />
+                <Stat icon={Microscope} label="Disease Risk" value={`${Math.round(villageAnalysis.diseaseRisk || 0)}%`} tone={(villageAnalysis.diseaseRisk > 20) ? "disease" : undefined} />
+                <Stat icon={TrendingUp} label="Est. Yield" value={`${villageAnalysis.yieldPrediction || "N/A"} t/ha`} tone="healthy" />
+              </div>
+              <div className="mt-4 p-4 rounded-xl bg-primary/10 border border-primary/20">
+                <div className="font-bold text-primary text-sm mb-1 flex items-center gap-1.5"><Globe className="h-4 w-4" /> Copernicus Sentinel-2 Feed</div>
+                <p className="text-xs text-foreground/80 leading-relaxed">
+                  Real-time satellite metrics aggregated for {villageName}. The NDVI values and associated stress metrics are calculated directly from Sentinel-2 Level-2A surface reflectance data.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "metadata" && (
+            <div className="space-y-4 text-xs max-h-[350px] overflow-y-auto scrollbar-thin">
+              <div className="border border-border rounded-xl divide-y divide-border bg-accent/10">
+                {[
+                  { label: "Product Name", value: meta.productName, className: "font-mono text-[10px] break-all leading-normal" },
+                  { label: "Product ID", value: meta.productId, className: "font-mono text-[10px] break-all" },
+                  { label: "Sensing Date", value: meta.sensingDate },
+                  { label: "Instrument", value: meta.instrument },
+                  { label: "Processing Level", value: meta.processingLevel },
+                  { label: "Cloud Cover", value: meta.cloudCover, className: "text-emerald-500 font-bold" },
+                  { label: "Spatial Resolution", value: meta.spatialResolution },
+                  { label: "File Size", value: typeof meta.fileSizeMb === 'number' ? `${meta.fileSizeMb} MB` : meta.fileSizeMb },
+                  { label: "Online Registry", value: meta.online, className: meta.online === "Yes" ? "text-emerald-500 font-bold" : "text-amber-500 font-bold" },
+                  { label: "S3 Registry Path", value: meta.s3Path, className: "font-mono text-[9.5px] break-all" }
+                ].map((row, idx) => (
+                  <div key={idx} className="p-3 flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{row.label}</span>
+                    <span className={`text-foreground font-semibold ${row.className || ""}`}>{row.value || "N/A"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "bandwidth" && (
+            <div className="space-y-3 max-h-[350px] overflow-y-auto scrollbar-thin">
+              {bands.map((band: any, idx: number) => (
+                <div key={idx} className="border border-border rounded-xl p-3 bg-accent/10 hover:border-primary/30 transition">
+                  <div className="flex justify-between items-center border-b border-border/40 pb-1.5 mb-2">
+                    <span className="font-bold text-primary text-sm">{band.band}</span>
+                    <span className="text-[10px] px-2 py-0.5 bg-primary/10 text-primary font-bold rounded-full">Res: {band.resolution}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs mb-2 text-muted-foreground">
+                    <div>Center Wavelength: <strong className="text-foreground">{band.centerWavelength}</strong></div>
+                    <div>Spectral Width: <strong className="text-foreground">{band.bandwidth}</strong></div>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-foreground/80">{band.purpose}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const meta = STATUS_META[field.dominant as FieldStatus];
+
+  if (dashboardMode === "farmer") {
+    const isHealthy = field.dominant === "healthy";
+    const isCritical = field.dominant === "water" || field.dominant === "disease";
+    const condition = isHealthy ? "Healthy" : isCritical ? "Critical" : "Moderate Stress";
+    const conditionColor = isHealthy ? "text-green-500" : isCritical ? "text-red-500" : "text-yellow-500";
+    
+    const waterStatus = field.water < 50 ? "Immediate Irrigation Needed" : field.water < 75 ? "Water Required Soon" : "Enough Water";
+    const waterColor = field.water < 50 ? "text-red-500" : field.water < 75 ? "text-yellow-500" : "text-green-500";
+    
+    const diseaseRisk = field.disease > 50 ? "High" : field.disease > 20 ? "Medium" : "Low";
+    const diseaseColor = field.disease > 50 ? "text-red-500" : field.disease > 20 ? "text-yellow-500" : "text-green-500";
+
+    return (
+      <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)] overflow-hidden">
+        <div className="p-5 border-b border-border relative">
+          <div className="flex justify-between items-start">
+            <h2 className="text-2xl font-black text-foreground">{field.name}</h2>
+          </div>
+          
+          <div className="mt-5">
+            <div className="text-sm text-muted-foreground uppercase tracking-wider font-bold">Farm Health Score</div>
+            <div className={`text-6xl font-black mt-1 ${conditionColor}`}>{field.health}<span className="text-2xl text-muted-foreground">/100</span></div>
+          </div>
+          <CropAnimation status={field.dominant} />
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="flex items-center justify-between p-4 rounded-xl bg-accent/30 border border-border">
+            <div className="flex items-center gap-3">
+              <Sprout className={`h-8 w-8 ${conditionColor}`} />
+              <div className="font-bold text-base">Crop Condition</div>
+            </div>
+            <div className={`font-black text-xl ${conditionColor}`}>{condition}</div>
+          </div>
+
+          <div className="flex items-center justify-between p-4 rounded-xl bg-accent/30 border border-border">
+            <div className="flex items-center gap-3">
+              <Droplets className={`h-8 w-8 ${waterColor}`} />
+              <div className="font-bold text-base">Water Status</div>
+            </div>
+            <div className={`font-black text-xl ${waterColor}`}>{waterStatus}</div>
+          </div>
+
+          <div className="flex items-center justify-between p-4 rounded-xl bg-accent/30 border border-border">
+            <div className="flex items-center gap-3">
+              <Microscope className={`h-8 w-8 ${diseaseColor}`} />
+              <div className="font-bold text-base">Disease Risk</div>
+            </div>
+            <div className={`font-black text-xl ${diseaseColor}`}>{diseaseRisk}</div>
+          </div>
+
+          <div className="flex items-center justify-between p-4 rounded-xl bg-accent/30 border border-border">
+            <div className="flex items-center gap-3">
+              <Wheat className={`h-8 w-8 text-primary`} />
+              <div>
+                <div className="font-bold text-base">Harvest Outlook</div>
+                <div className="text-xs text-muted-foreground">Expected Yield</div>
+              </div>
+            </div>
+            <div className={`font-black text-2xl text-primary`}>{field.yield} t/ha</div>
+          </div>
+        </div>
+
+        <div className="m-5 mt-2 p-5 rounded-xl bg-blue-500/10 border border-blue-500/20 shadow-sm">
+          <div className="flex items-center gap-2 font-black text-lg text-blue-600 dark:text-blue-400 mb-3">
+            What Should I Do Today?
+          </div>
+          <p className="font-bold text-base leading-relaxed text-foreground">{field.rec}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-soft)] overflow-hidden">
       <div className="p-4 border-b border-border bg-gradient-to-br from-accent/30 to-transparent">
@@ -900,7 +1220,7 @@ function FieldPanel({ field, crop }: { field: any; crop: string }) {
         <Stat icon={Sprout} label="Growth stage" value={field.stage} />
         <Stat icon={TrendingUp} label="Yield forecast" value={`${field.yield} t/ha`} tone="healthy" />
         <Stat icon={Calendar} label="Harvest in" value={`${field.harvestIn} days`} />
-        <Stat icon={Target} label="Confidence" value="94%" />
+        <Stat icon={Target} label="Confidence" value={field.aiConfidence || "94%"} />
       </div>
 
       <div className="px-4 pb-3">

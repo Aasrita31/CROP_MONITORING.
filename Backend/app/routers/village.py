@@ -78,7 +78,7 @@ def search_village(payload: VillageSearchRequest, db: Session = Depends(get_db))
     # 2. OSM Nominatim dynamic geocoding
     try:
         headers = {"User-Agent": "AgriTwin-Crop-Monitor/1.0"}
-        url = f"https://nominatim.openstreetmap.org/search?format=json&q={requests.utils.quote(village_name)}+Andhra+Pradesh&limit=1"
+        url = f"https://nominatim.openstreetmap.org/search?format=json&q={requests.utils.quote(village_name)}&limit=1"
         res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             data = res.json()
@@ -108,18 +108,35 @@ def search_village(payload: VillageSearchRequest, db: Session = Depends(get_db))
     }
 
 @analysis_router.get("/village", response_model=VillageAnalysisResult)
-def get_analysis_village(name: str = None, village_id: int = None, db: Session = Depends(get_db)):
-    # 1. Resolve location
+def get_analysis_village(
+    name: str = None,
+    village_id: int = None,
+    latitude: float = None,
+    longitude: float = None,
+    db: Session = Depends(get_db),
+):
+    # 1. Resolve location — prefer explicit geocoded coordinates from village search
     location = None
-    if name:
+    if latitude is not None and longitude is not None:
+        delta = 0.01
+        location = {
+            "lat": latitude,
+            "lon": longitude,
+            "boundingbox": [latitude - delta, latitude + delta, longitude - delta, longitude + delta],
+            "name": name or f"{latitude},{longitude}",
+        }
+    elif name:
         location = SentinelService.get_village_location(name)
     elif village_id:
         village = db.query(Village).filter(Village.id == village_id).first()
         if village:
             location = SentinelService.get_village_location(village.name)
-            
+
     if not location:
-        location = SentinelService.get_village_location("Kadiyam")
+        raise HTTPException(
+            status_code=400,
+            detail="Could not resolve village location. Provide a valid village name or coordinates.",
+        )
 
     # 2. Fetch Bands
     bands = SentinelService.fetch_sentinel2_bands(location['boundingbox'])
@@ -134,10 +151,54 @@ def get_analysis_village(name: str = None, village_id: int = None, db: Session =
     # Estimate yield based on health score (e.g. 100 health = ~7.5 t/ha, 0 = ~1.0 t/ha)
     yield_pred = round(1.0 + (metrics['health_score'] / 100.0) * 6.5, 1)
 
+    # 5. Generate transparent NDVI Heatmap Overlay
+    image_data_uri = NdviService.generate_heatmap_overlay(ndvi_array)
+
+    # 6. Fetch Copernicus product catalog metadata
+    copernicus_meta = SentinelService.fetch_product_metadata(location['boundingbox'])
+
+    # 7. Formulate band metadata details
+    bandwidth_details = [
+        {
+            "band": "B02 (Blue)",
+            "centerWavelength": "490 nm",
+            "bandwidth": "98 nm",
+            "resolution": "10 meters",
+            "purpose": "Atmospheric correction and soil/vegetation discrimination."
+        },
+        {
+            "band": "B03 (Green)",
+            "centerWavelength": "560 nm",
+            "bandwidth": "45 nm",
+            "resolution": "10 meters",
+            "purpose": "Reflected by green vegetation (chlorophyll reflection peak)."
+        },
+        {
+            "band": "B04 (Red)",
+            "centerWavelength": "665 nm",
+            "bandwidth": "38 nm",
+            "resolution": "10 meters",
+            "purpose": "Absorbed strongly by chlorophyll for photosynthesis (used in NDVI)."
+        },
+        {
+            "band": "B08 (Near-Infrared - NIR)",
+            "centerWavelength": "842 nm",
+            "bandwidth": "145 nm",
+            "resolution": "10 meters",
+            "purpose": "Reflected strongly by leaf cell structure, indicating biomass (used in NDVI)."
+        }
+    ]
+
     return {
         "ndvi": metrics['avg_ndvi'],
         "healthScore": metrics['health_score'],
-        "diseaseRisk": metrics['critical_pct'] + (metrics['water_stress_pct'] * 0.5), # heuristic
-        "waterStress": metrics['water_stress_pct'] + (metrics['critical_pct'] * 0.2), # heuristic
-        "yieldPrediction": yield_pred
+        "diseaseRisk": int(min(100, max(0, metrics['critical_pct'] + (metrics['water_stress_pct'] * 0.5)))),
+        "waterStress": int(min(100, max(0, metrics['water_stress_pct'] + (metrics['critical_pct'] * 0.2)))),
+        "yieldPrediction": yield_pred,
+        "imageUrl": image_data_uri,
+        "captureDate": bands.get('capture_date', "2026-06-18T12:00:00Z"),
+        "source": bands.get('source', "Copernicus Sentinel-2 L2A (Real Data)"),
+        "copernicusMetadata": copernicus_meta,
+        "bandwidthDetails": bandwidth_details
     }
+

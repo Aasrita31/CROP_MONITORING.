@@ -336,15 +336,7 @@ export function ApRiceBowlSection() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-card to-accent border border-border p-5 rounded-2xl shadow-sm">
-            <h3 className="font-bold text-lg flex items-center gap-2 mb-2"><Info className="h-5 w-5 text-blue-500" /> What is NDVI?</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-              The Normalized Difference Vegetation Index measures chlorophyll density using near-infrared and red light reflectance. Paddy fields exhibit highest NDVI during flowering and grain-filling stages.
-            </p>
-            <div className="bg-background border border-border p-3 rounded-xl font-mono text-center text-xs font-semibold shadow-inner">
-              NDVI = (NIR - Red) / (NIR + Red)
-            </div>
-          </div>
+
         </div>
       </div>
 

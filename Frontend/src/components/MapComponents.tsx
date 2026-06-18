@@ -1,21 +1,24 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polygon, Circle, SVGOverlay, ImageOverlay } from "react-leaflet";
-import { Search, Leaf, X, Layers, Target, Droplets, FlaskConical, Sprout, TrendingUp, Calendar, Activity, Bot, ChevronRight, ChevronLeft, MapPin, CheckCircle2, AlertTriangle, AlertCircle, Skull, Bug } from "lucide-react";
+import { Search, Leaf, X, Layers, Target, Droplets, FlaskConical, Sprout, TrendingUp, Calendar, Activity, Bot, ChevronRight, ChevronLeft, MapPin, CheckCircle2, AlertTriangle, AlertCircle, Skull, Bug, Sun } from "lucide-react";
 import satelliteImg from "@/assets/satellite-farm.jpg";
 import { useApp } from "@/context/AppContext";
 import { useDashboardContext } from "../context/DashboardContext";
+import { buildFieldFromCopernicusPolygon, buildInsightsFromAnalysis, buildKpisFromVillageAnalysis } from "../lib/copernicusFieldMapper";
+import { ICON_MAP } from "@/context/AppContext";
 
 function MapSearchBox({ 
   onSelectLocation, 
   theme = "dark" 
 }: { 
-  onSelectLocation: (lat: number, lon: number, name: string) => void,
+  onSelectLocation: (lat: number, lon: number, name: string, bbox?: string[]) => void,
   theme?: "dark" | "light"
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
 
   useEffect(() => {
     const debounce = setTimeout(async () => {
@@ -41,7 +44,43 @@ function MapSearchBox({
   const handleSelect = (s: any) => {
     setSearchQuery(s.display_name);
     setShowSuggestions(false);
-    onSelectLocation(parseFloat(s.lat), parseFloat(s.lon), s.display_name);
+    onSelectLocation(parseFloat(s.lat), parseFloat(s.lon), s.display_name, s.boundingbox);
+  };
+
+  const handleGPSLocation = () => {
+    if (!("geolocation" in navigator)) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          if (res.ok) {
+            const data = await res.json();
+            const displayName = data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+            setSearchQuery(displayName);
+            onSelectLocation(latitude, longitude, displayName);
+          } else {
+            const fallbackName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+            setSearchQuery(fallbackName);
+            onSelectLocation(latitude, longitude, fallbackName);
+          }
+        } catch (e) {
+          const fallbackName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          setSearchQuery(fallbackName);
+          onSelectLocation(latitude, longitude, fallbackName);
+        }
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error("GPS error:", error);
+        alert("Unable to retrieve GPS location. Please check browser permissions.");
+        setIsLocating(false);
+      }
+    );
   };
 
   const isDark = theme === "dark";
@@ -63,6 +102,15 @@ function MapSearchBox({
              <X className={`h-4 w-4 ${isDark ? 'text-white/50' : 'text-muted-foreground'}`} />
           </button>
         )}
+        <button 
+          type="button" 
+          onClick={handleGPSLocation} 
+          disabled={isLocating}
+          title="Use GPS current location" 
+          className={`p-1.5 ${isDark ? 'hover:bg-white/10' : 'hover:bg-accent'} rounded transition ${isLocating ? 'animate-pulse text-[#84cc16]' : ''}`}
+        >
+          <Target className={`h-4 w-4 ${isDark ? 'text-white/70 hover:text-white' : 'text-muted-foreground hover:text-foreground'}`} />
+        </button>
         <button className="p-1">
           {isLoading ? <span className={`h-4 w-4 block animate-spin rounded-full border-2 ${isDark ? 'border-white/50' : 'border-primary'} border-t-transparent`} /> : <Search className={`h-4 w-4 ${isDark ? 'text-white/50' : 'text-muted-foreground'}`} />}
         </button>
@@ -144,8 +192,8 @@ export function DashboardInteractiveMap({
   const [timeLine, setTimeLine] = useState<number>(100);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [isLayersOpen, setIsLayersOpen] = useState(false);
-  const { highlightedFields } = useApp();
-  const { searchCoords, searchQuery, villageAnalysis } = useDashboardContext();
+  const { highlightedFields, dashboardMode, applyVillageSearchResults } = useApp();
+  const { searchCoords, searchQuery, villageAnalysis, setSearchFields, setSearchCoords, setSearchQuery } = useDashboardContext();
 
   // Helper to enrich fields with polygons
   const enrichFields = (rawFields: any[], cCenter: [number, number]) => {
@@ -197,66 +245,58 @@ export function DashboardInteractiveMap({
     setDynamicFields(enrichFields(fields, center));
   }, [center, fields]);
 
-  const handleLocationSelect = async (lat: number, lon: number, name: string) => {
+  const handleLocationSelect = async (lat: number, lon: number, name: string, bbox?: string[]) => {
     setMapCenter([lat, lon]);
+    setSearchCoords([lat, lon]);
+    setSearchQuery(name.split(",")[0].trim());
+
     if (mapRef.current) {
-      mapRef.current.flyTo([lat, lon], 14, { duration: 1.5 });
+      if (bbox) {
+        const leafletBbox = L.latLngBounds(
+          [parseFloat(bbox[0]), parseFloat(bbox[2])],
+          [parseFloat(bbox[1]), parseFloat(bbox[3])]
+        );
+        mapRef.current.flyToBounds(leafletBbox, { duration: 1.5, padding: [50, 50] });
+      } else {
+        mapRef.current.flyTo([lat, lon], 14, { duration: 1.5 });
+      }
     }
 
     try {
-      // Fetch REAL crop boundary polygons extracted via OpenCV from Sentinel-2
       const res = await fetch(`http://127.0.0.1:8000/api/satellite/fields?latitude=${lat}&longitude=${lon}`);
       const realPolygons = await res.json();
-      
-      const realFields = realPolygons.map((poly: any, i: number) => {
-        // Map true physical NDVI to our health scoring model
-        const healthScore = Math.min(100, Math.max(0, poly.mean_ndvi * 100 + 15));
-        
-        let dom = "healthy";
-        let condition = "Healthy Paddy";
-        let rec = "Crop growth is healthy. Continue current irrigation schedule.";
-        
-        if (healthScore < 40) {
-          dom = "disease";
-          condition = "Critical Vegetation Loss";
-          rec = "High vegetation stress detected. Immediate field inspection recommended.";
-        } else if (healthScore < 60) {
-          dom = "water";
-          condition = "Water Deficit";
-          rec = "Possible water stress detected. Monitor irrigation over the next 5 days.";
-        } else if (healthScore < 75) {
-          dom = "nutrient";
-          condition = "Moderate Stress";
-          rec = "Crop growth is slowing. Inspect irrigation and nutrient availability.";
-        }
 
-        return {
-          id: poly.id,
-          name: `${name.split(',')[0]} ${poly.name}`,
-          lat: poly.polygonCoords[0][0],
-          lng: poly.polygonCoords[0][1],
-          polygonCoords: poly.polygonCoords,
-          hotspots: [],
-          dominant: dom,
-          health: Math.floor(healthScore),
-          condition: condition,
-          rec: rec,
-          area: `${(Math.random() * 5 + 1).toFixed(1)} Hectares`,
-          surveyNo: `SUR-${1000 + Math.floor(Math.random() * 9000)}`,
-          village: name.split(',')[0],
-          aiConfidence: `${Math.floor(88 + Math.random() * 10)}%`,
-          lastScan: new Date().toLocaleDateString(),
-          disease: dom === 'disease' ? Math.floor(60 + Math.random() * 30) : Math.floor(Math.random() * 15),
-          water: dom === 'water' ? Math.floor(60 + Math.random() * 30) : Math.floor(Math.random() * 20),
-          stage: "Vegetative",
-          yield: (1.0 + (healthScore / 100) * 6.5).toFixed(1),
-          harvestIn: Math.floor(Math.random() * 60 + 10),
-          npk: { n: 60 + Math.random()*30, p: 50 + Math.random()*30, k: 50 + Math.random()*30 }
-        };
+      const analysisRes = await fetch(
+        `http://127.0.0.1:8000/api/analysis/village?name=${encodeURIComponent(name)}&latitude=${lat}&longitude=${lon}`,
+      );
+      const analysisData = analysisRes.ok ? await analysisRes.json() : null;
+
+      const realFields = realPolygons.map((poly: Parameters<typeof buildFieldFromCopernicusPolygon>[0], i: number) =>
+        buildFieldFromCopernicusPolygon(poly, i, name, analysisData),
+      );
+
+      setDynamicFields((prev) => {
+        const newFields = [
+          ...prev.filter((f) => !f.id.startsWith("sim-") && !f.id.startsWith("real-plot-")),
+          ...realFields,
+        ];
+        return newFields;
       });
-      
-      // Replace old simulated/real search fields, keep district base fields
-      setDynamicFields(prev => [...prev.filter(f => !f.id.startsWith('sim-') && !f.id.startsWith('real-plot-')), ...realFields]);
+      setSearchFields(realFields);
+      // Note: to render bbox, we could store it in context, but for now we'll just let map fly to it.
+
+      if (analysisData) {
+        const villageLabel = name.split(",")[0].trim();
+        applyVillageSearchResults({
+          villageName: villageLabel,
+          district: "",
+          coords: [lat, lon],
+          analysis: analysisData,
+          fields: realFields,
+          kpis: buildKpisFromVillageAnalysis(analysisData, villageLabel, ICON_MAP),
+          insights: buildInsightsFromAnalysis(analysisData, villageLabel),
+        });
+      }
     } catch (e) {
       console.error("Failed to load real polygons:", e);
     }
@@ -305,6 +345,15 @@ export function DashboardInteractiveMap({
             opacity={activeLayer === 'ndvi' ? 0.8 : 0}
             className="transition-opacity duration-500"
           />
+        )}
+
+        {searchCoords && (
+          <Marker position={searchCoords} icon={L.divIcon({
+            html: `<div class="flex flex-col items-center"><div class="text-[#84cc16] drop-shadow-md"><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" stroke="white" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3" fill="white"></circle></svg></div><div class="mt-1 px-2 py-1 bg-black/60 backdrop-blur-md text-white text-[11px] font-semibold rounded border border-white/20 whitespace-nowrap shadow-sm">${searchQuery}</div></div>`,
+            className: 'bg-transparent',
+            iconSize: [200, 60],
+            iconAnchor: [100, 32]
+          })} />
         )}
         
         {/* Render fields as polygons with internal mixed conditions */}
@@ -378,7 +427,7 @@ export function DashboardInteractiveMap({
                   center={[hs.lat, hs.lng]}
                   radius={hs.radius * (timeLine / 100)} // Shrink hotspots when timeline goes to past/future
                   pathOptions={{
-                    fillColor: getBaseColor(hs.type),
+                    fillColor: getDomColor(hs.type),
                     fillOpacity: 0.7,
                     stroke: false
                   }}
@@ -396,44 +445,6 @@ export function DashboardInteractiveMap({
         })}
       </MapContainer>
 
-      <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2 pointer-events-none w-64 md:w-80">
-        <MapSearchBox onSelectLocation={handleLocationSelect} theme="light" />
-        
-        {/* Map Layers Dropdown */}
-        <div className="relative pointer-events-auto mt-2">
-          <button 
-            onClick={() => setIsLayersOpen(!isLayersOpen)}
-            className="w-full flex items-center justify-between gap-2 h-10 px-4 bg-card/90 backdrop-blur border border-border rounded-lg shadow-lg hover:bg-accent text-sm font-medium text-foreground transition"
-          >
-            <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-primary" />
-              Layer: <span className="capitalize">{activeLayer}</span>
-            </div>
-          </button>
-          
-          {isLayersOpen && (
-            <div className="absolute top-full mt-1 w-full bg-card/95 backdrop-blur border border-border rounded-lg shadow-xl overflow-hidden z-50">
-              {[
-                { id: 'satellite', label: 'Satellite RGB' },
-                { id: 'ndvi', label: 'NDVI (Vegetation)' },
-                { id: 'health', label: 'Crop Health' },
-                { id: 'disease', label: 'Disease Risk' },
-                { id: 'water', label: 'Water Stress' },
-                { id: 'boundary', label: 'Field Boundaries Only' },
-              ].map(layer => (
-                <button
-                  key={layer.id}
-                  onClick={() => { setActiveLayer(layer.id); setIsLayersOpen(false); }}
-                  className={`w-full text-left px-4 py-2.5 text-sm transition flex items-center gap-2 ${activeLayer === layer.id ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
-                >
-                  <span className={`h-2 w-2 rounded-full ${activeLayer === layer.id ? 'bg-primary' : 'bg-transparent border border-muted-foreground'}`} />
-                  {layer.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Floating Field Panel */}
       {selectedFieldId && (
@@ -449,9 +460,49 @@ export function DashboardInteractiveMap({
 }
 
 export function FloatingFieldPanel({ field, onClose }: { field: any, onClose: () => void }) {
+  const { dashboardMode } = useApp();
   if (!field) return null;
   
   const npk = field.npk || { n: 72, p: 65, k: 80 };
+
+  if (dashboardMode === 'farmer') {
+    const isHealthy = field.dominant === "healthy";
+    const isCritical = field.dominant === "water" || field.dominant === "disease";
+    const conditionColor = isHealthy ? "text-green-500" : isCritical ? "text-red-500" : "text-yellow-500";
+    const conditionBg = isHealthy ? "bg-green-500/10 border-green-500/20" : isCritical ? "bg-red-500/10 border-red-500/20" : "bg-yellow-500/10 border-yellow-500/20";
+    
+    return (
+      <div className="absolute top-4 left-4 w-72 bg-card/95 backdrop-blur-xl border border-border shadow-2xl rounded-2xl z-[500] flex flex-col overflow-hidden animate-in slide-in-from-left-4 pointer-events-auto">
+        <div className="p-4 border-b border-border flex items-start justify-between">
+          <h2 className="text-xl font-bold">{field.name}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-black/10 transition"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="p-4 space-y-3 text-sm">
+          <div className="flex justify-between items-center pb-2 border-b border-border">
+            <span className="text-muted-foreground font-bold">Crop Status</span>
+            <span className={`font-black ${conditionColor}`}>{field.condition || (isHealthy ? 'Healthy' : isCritical ? 'Critical' : 'Moderate Stress')}</span>
+          </div>
+          <div className="flex justify-between items-center pb-2 border-b border-border">
+            <span className="text-muted-foreground font-bold">Water Status</span>
+            <span className={`font-black ${field.water < 50 ? 'text-red-500' : field.water < 75 ? 'text-yellow-500' : 'text-green-500'}`}>{field.water < 50 ? 'Needs Water' : field.water < 75 ? 'Water Req. Soon' : 'Enough Water'}</span>
+          </div>
+          <div className="flex justify-between items-center pb-2 border-b border-border">
+            <span className="text-muted-foreground font-bold">Disease Risk</span>
+            <span className={`font-black ${field.disease > 50 ? 'text-red-500' : field.disease > 20 ? 'text-yellow-500' : 'text-green-500'}`}>{field.disease > 50 ? 'High' : field.disease > 20 ? 'Medium' : 'Low'}</span>
+          </div>
+          <div className="flex justify-between items-center pb-2 border-b border-border">
+            <span className="text-muted-foreground font-bold">Last Update</span>
+            <span className="font-black text-foreground">{field.lastScan || 'Today'}</span>
+          </div>
+          
+          <div className={`mt-2 p-3 rounded-xl border ${conditionBg}`}>
+            <div className="font-bold mb-1 flex items-center gap-1"><Bot className="h-4 w-4" /> Recommendation</div>
+            <p className="font-semibold text-xs leading-relaxed">{field.rec}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="absolute top-4 left-4 bottom-24 w-80 bg-card/95 backdrop-blur-xl border border-border shadow-2xl rounded-2xl z-[500] flex flex-col overflow-hidden animate-in slide-in-from-left-4 pointer-events-auto">
@@ -572,10 +623,20 @@ export function FloatingFieldPanel({ field, onClose }: { field: any, onClose: ()
 
 export function AddFieldModalContent({ onClose }: { onClose: () => void }) {
   const mapRef = useRef<L.Map | null>(null);
+  const [searchedLocation, setSearchedLocation] = useState<{lat: number, lon: number, name: string, bbox?: string[]} | null>(null);
 
-  const handleLocationSelect = (lat: number, lon: number, name: string) => {
+  const handleLocationSelect = (lat: number, lon: number, name: string, bbox?: string[]) => {
+    setSearchedLocation({lat, lon, name, bbox});
     if (mapRef.current) {
-      mapRef.current.flyTo([lat, lon], 15, { duration: 1.5 });
+      if (bbox) {
+        const leafletBbox = L.latLngBounds(
+          [parseFloat(bbox[0]), parseFloat(bbox[2])],
+          [parseFloat(bbox[1]), parseFloat(bbox[3])]
+        );
+        mapRef.current.flyToBounds(leafletBbox, { duration: 1.5, padding: [50, 50] });
+      } else {
+        mapRef.current.flyTo([lat, lon], 15, { duration: 1.5 });
+      }
     }
   };
 
@@ -619,6 +680,16 @@ export function AddFieldModalContent({ onClose }: { onClose: () => void }) {
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             attribution="Tiles &copy; Esri"
           />
+
+          {searchedLocation && (
+            <Marker position={[searchedLocation.lat, searchedLocation.lon]} icon={L.divIcon({
+              html: `<div class="flex flex-col items-center"><div class="text-[#84cc16] drop-shadow-md"><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" stroke="white" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3" fill="white"></circle></svg></div><div class="mt-1 px-2 py-1 bg-black/60 backdrop-blur-md text-white text-[11px] font-semibold rounded border border-white/20 whitespace-nowrap shadow-sm">${searchedLocation.name.split(',')[0]}</div></div>`,
+              className: 'bg-transparent',
+              iconSize: [200, 60],
+              iconAnchor: [100, 32]
+            })} />
+          )}
+
         </MapContainer>
 
         {/* Floating UI Elements from screenshot */}

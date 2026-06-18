@@ -13,22 +13,6 @@ import { AddFieldModal } from "@/components/AddFieldModal";
 /* ---------------- Sidebar Data ---------------- */
 const SIDEBAR_ITEMS = [
   { label: "Dashboard", icon: Grid3x3, path: "/" },
-  { label: "Digital Twin", icon: Hexagon, path: "/digital-twin" },
-  { label: "Farm Overview", icon: MapPin, path: "/farm-overview" },
-  { label: "Live Monitoring", icon: Activity, path: "/live-monitoring" },
-  { label: "Disease Detection", icon: Microscope, path: "/disease-detection" },
-  { label: "Pest Monitoring", icon: Bug, path: "/pest-monitoring" },
-  { label: "Nutrient Analysis", icon: FlaskConical, path: "/nutrient-analysis" },
-  { label: "Water Management", icon: Droplets, path: "/water-management" },
-  { label: "Satellite Analysis", icon: Plane, path: "/satellite-analysis" },
-  { label: "Weather Intelligence", icon: CloudSun, path: "/weather-intelligence" },
-  { label: "Historical Comparisons", icon: CalIcon, path: "/historical-comparisons" },
-  { label: "Field Health Ranking", icon: Target, path: "/field-health-ranking" },
-  { label: "Yield Prediction", icon: TrendingUp, path: "/yield-prediction" },
-  { label: "AI Recommendations", icon: Sparkles, path: "/ai-recommendations" },
-  { label: "Harvest Planner", icon: Wheat, path: "/harvest-planner" },
-  { label: "Reports", icon: FileBarChart, path: "/reports" },
-  { label: "Settings", icon: SettingsIcon, path: "/settings" },
 ];
 
 function Select({ label, icon: Icon, value, onChange, options }: { label: string; icon: any; value: string; onChange: (s: string) => void; options: string[] }) {
@@ -71,13 +55,13 @@ function WeatherChip({ weatherData }: { weatherData: any }) {
   );
 }
 
-export function Header() {
+export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const { farm, setFarm, crop, setCrop, setAiOpen, setAddFieldOpen, weatherData } = useApp();
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-xl">
       <div className="flex items-center gap-3 px-4 md:px-6 h-16">
-        <button className="lg:hidden p-2 rounded-md hover:bg-accent" aria-label="menu"><Menu className="h-5 w-5" /></button>
+        <button onClick={onToggleSidebar} className="p-2 rounded-md hover:bg-accent" aria-label="menu"><Menu className="h-5 w-5" /></button>
 
         <Link to="/" className="flex items-center gap-2.5">
           <div className="relative h-9 w-9 rounded-xl grid place-items-center text-primary-foreground shadow-[var(--shadow-soft)]" style={{ background: "var(--gradient-primary)" }}>
@@ -104,14 +88,7 @@ export function Header() {
 
         <div className="ml-auto flex items-center gap-2">
           <WeatherChip weatherData={weatherData} />
-          <button className="relative p-2 rounded-lg hover:bg-accent" aria-label="notifications">
-            <Bell className="h-5 w-5 text-muted-foreground" />
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-disease" />
-          </button>
-          <button onClick={() => setAddFieldOpen(true)}
-            className="hidden md:inline-flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium border border-border bg-card hover:bg-accent transition">
-            <Target className="h-4 w-4" /> Add Field
-          </button>
+
           <button onClick={() => setAiOpen(true)}
             className="hidden md:inline-flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium text-primary-foreground shadow-[var(--shadow-soft)] hover:opacity-95 transition"
             style={{ background: "var(--gradient-primary)" }}>
@@ -123,8 +100,7 @@ export function Header() {
   );
 }
 
-export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const [intelligenceOpen, setIntelligenceOpen] = useState(true);
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
@@ -135,40 +111,6 @@ export function Sidebar() {
       style={{ width: collapsed ? 72 : 280 }}
     >
       <div className="p-3 flex-1 overflow-y-auto scrollbar-thin">
-        {!collapsed && (
-          <div className="mb-4">
-            <button 
-              onClick={() => setIntelligenceOpen(!intelligenceOpen)}
-              className="flex items-center justify-between w-full text-[10px] font-bold uppercase tracking-[0.14em] text-primary px-3 py-2 bg-primary/5 border border-primary/10 rounded-lg hover:bg-primary/10 transition"
-            >
-              <div className="flex items-center gap-2"><Bot className="h-3 w-3" /> Farm Intelligence</div>
-              <ChevronDown className={`h-3 w-3 transition-transform ${intelligenceOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {intelligenceOpen && (
-              <div className="mt-2 space-y-1 pl-2">
-                {[
-                  { label: "High Risk Fields", icon: Target, count: 2, color: "text-disease", bg: "bg-disease/10" },
-                  { label: "Disease Alerts", icon: Microscope, count: 1, color: "text-disease", bg: "bg-disease/10" },
-                  { label: "Nutrient Alerts", icon: FlaskConical, count: 3, color: "text-nutrient", bg: "bg-nutrient/10" },
-                  { label: "Water Stress Alerts", icon: Droplets, count: 5, color: "text-water", bg: "bg-water/10" },
-                  { label: "Pest Alerts", icon: Bug, count: 0, color: "text-pest", bg: "bg-pest/10" },
-                  { label: "Yield Warnings", icon: TrendingUp, count: 1, color: "text-muted-foreground", bg: "bg-accent" },
-                ].map((alert) => {
-                  const Icon = alert.icon;
-                  return (
-                    <button key={alert.label} className="w-full flex items-center justify-between px-3 h-8 rounded-lg text-xs hover:bg-sidebar-accent transition text-sidebar-foreground/80">
-                      <div className="flex items-center gap-2">
-                        <Icon className={`h-3.5 w-3.5 ${alert.color}`} />
-                        <span>{alert.label}</span>
-                      </div>
-                      {alert.count > 0 && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${alert.bg} ${alert.color}`}>{alert.count}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
 
         <div className={`text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground px-3 py-2 mt-2 ${collapsed ? "text-center" : ""}`}>
           {collapsed ? "··" : "Analytics & Digital Twin"}
@@ -190,7 +132,7 @@ export function Sidebar() {
         </nav>
       </div>
       <div className="p-3 border-t border-sidebar-border">
-        <button onClick={() => setCollapsed(!collapsed)}
+        <button onClick={onToggle}
           className="w-full flex items-center justify-center gap-2 h-9 rounded-lg border border-sidebar-border hover:bg-sidebar-accent text-xs text-muted-foreground">
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /> Collapse Sidebar</>}
         </button>
@@ -201,6 +143,7 @@ export function Sidebar() {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { activeFarm, weatherData, aiOpen, setAiOpen, addFieldOpen, setAddFieldOpen, farm, crop } = useApp();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   if (!activeFarm || !weatherData) {
     return <div className="min-h-screen bg-background flex items-center justify-center text-foreground font-semibold">Loading Global Data...</div>;
@@ -208,9 +151,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background text-foreground" style={{ fontFamily: "Inter, ui-sans-serif" }}>
-      <Header />
+      <Header onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
       <div className="flex">
-        <Sidebar />
+        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
         <main className="flex-1 min-w-0 p-4 md:p-6 space-y-6">
           {children}
         </main>

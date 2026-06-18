@@ -18,6 +18,9 @@ export interface VillageAnalysisResult {
   diseaseRisk: number;
   waterStress: number;
   yieldPrediction: number;
+  captureDate?: string;
+  source?: string;
+  imageUrl?: string;
 }
 
 export const villageSearchApi = {
@@ -35,10 +38,14 @@ export const villageSearchApi = {
     return response.data;
   },
 
-  getVillageAnalysis: async (name: string): Promise<VillageAnalysisResult> => {
+  getVillageAnalysis: async (
+    name: string,
+    latitude?: number,
+    longitude?: number,
+  ): Promise<VillageAnalysisResult> => {
     const response = await apiClient.get<VillageAnalysisResult>("/analysis/village", {
-      params: { name }
+      params: { name, latitude, longitude },
     });
     return response.data;
-  }
+  },
 };

@@ -130,3 +130,9 @@ class VillageAnalysisResult(BaseModel):
     diseaseRisk: int
     waterStress: int
     yieldPrediction: float
+    imageUrl: Optional[str] = None
+    captureDate: Optional[str] = None
+    source: Optional[str] = None
+    copernicusMetadata: Optional[Dict[str, Any]] = None
+    bandwidthDetails: Optional[List[Dict[str, Any]]] = None
+
