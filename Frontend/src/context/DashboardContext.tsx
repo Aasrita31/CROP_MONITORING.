@@ -14,7 +14,8 @@ interface DashboardContextType {
   villageAnalysis: any;
   setVillageAnalysis: (analysis: any) => void;
   searchFields: any[];
-  setSearchFields: (fields: any[]) => void;
+  activePanel: string;
+  setActivePanel: (panel: string) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -27,6 +28,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [villageAnalysis, setVillageAnalysis] = useState<any>(null);
   const [searchFields, setSearchFields] = useState<any[]>([]);
+  const [activePanel, setActivePanel] = useState<string>("Dashboard");
 
   return (
     <DashboardContext.Provider
@@ -44,7 +46,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         villageAnalysis,
         setVillageAnalysis,
         searchFields,
-        setSearchFields
+        setSearchFields,
+        activePanel,
+        setActivePanel
       }}
     >
       {children}

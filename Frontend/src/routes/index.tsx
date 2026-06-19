@@ -245,7 +245,7 @@ function Dashboard() {
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const { farm, setFarm, crop, activeFarm, weatherData, nationalNdvi, dashboardMode, setDashboardMode } = useApp();
-  const { searchCoords, searchQuery, villageAnalysis, searchFields } = useDashboardContext();
+  const { searchCoords, searchQuery, villageAnalysis, searchFields, activePanel } = useDashboardContext();
 
   const mapCenter = useMemo<[number, number]>(() => {
     if (searchCoords) return searchCoords;
@@ -296,9 +296,10 @@ function Dashboard() {
 
           <VillageSearchPanel />
 
-          <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {activePanel === "Dashboard" ? (
+            <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 space-y-6">
-              <div className="h-[600px] w-full rounded-2xl overflow-hidden shadow-[var(--shadow-soft)]">
+              <div className="h-[calc(100vh-150px)] w-full rounded-2xl overflow-hidden shadow-[var(--shadow-soft)] mb-6">
                 <ClientOnly>
                   <Suspense fallback={<div className="w-full h-full bg-[#1c2128] flex items-center justify-center text-muted-foreground">Loading interactive map...</div>}>
                     <DashboardInteractiveMap 
@@ -310,16 +311,6 @@ function Dashboard() {
                 </ClientOnly>
               </div>
               
-
-
-      {/* AP RICE BOWL INTELLIGENCE MODULE */}
-              <div className="mt-8 pt-6 border-t border-border">
-                <ClientOnly>
-                  <Suspense fallback={<div className="h-[400px] w-full flex items-center justify-center text-muted-foreground bg-card rounded-2xl border border-border">Loading AP Rice Bowl Intelligence...</div>}>
-                    <ApRiceBowlSection />
-                  </Suspense>
-                </ClientOnly>
-              </div>
             </div>
             <div className="space-y-6">
               <div className="flex w-full bg-accent/40 rounded-xl p-1 border border-border shadow-sm">
@@ -338,9 +329,19 @@ function Dashboard() {
               </div>
               <FieldPanel field={field} crop={crop} villageAnalysis={villageAnalysis} villageName={searchQuery} />
               <AiInsights insights={activeFarm.insights} />
-              <WeatherPanel data={weatherData} />
             </div>
           </section>
+          ) : activePanel === "AP Rice Bowl" ? (
+            <div className="animate-in fade-in duration-500">
+              <ClientOnly>
+                <Suspense fallback={<div className="h-[400px] w-full flex items-center justify-center text-muted-foreground bg-card rounded-2xl border border-border">Loading AP Rice Bowl Intelligence...</div>}>
+                  <ApRiceBowlSection />
+                </Suspense>
+              </ClientOnly>
+            </div>
+          ) : (
+            <AnalyticsPanel title={activePanel} villageName={searchQuery} />
+          )}
           <footer className="pt-6 pb-2 text-xs text-muted-foreground flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Leaf className="h-3.5 w-3.5 text-primary" />
@@ -349,6 +350,23 @@ function Dashboard() {
             <div>© 2026 AgriTwin Vision Labs</div>
           </footer>
         </div>
+  );
+}
+
+function AnalyticsPanel({ title, villageName }: { title: string; villageName: string }) {
+  return (
+    <div className="bg-card border border-border p-8 rounded-2xl shadow-[var(--shadow-soft)] animate-in fade-in duration-500">
+      <h2 className="text-2xl font-bold mb-2 text-primary">{title}</h2>
+      <p className="text-muted-foreground mb-6">
+        Live Sentinel-2 and weather-derived analytics for <span className="font-semibold text-foreground">{villageName || "the selected region"}</span>.
+      </p>
+      <div className="h-64 flex items-center justify-center border-2 border-dashed border-border rounded-xl bg-accent/20">
+        <div className="flex flex-col items-center gap-4 text-muted-foreground">
+          <Activity className="h-8 w-8 animate-pulse text-primary/60" />
+          <span>Processing real-time satellite telemetry for {title}...</span>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1223,22 +1241,6 @@ function FieldPanel({ field, crop, villageAnalysis, villageName }: { field: any 
         <Stat icon={Target} label="Confidence" value={field.aiConfidence || "94%"} />
       </div>
 
-      <div className="px-4 pb-3">
-        <div className="text-[10.5px] uppercase tracking-wider text-muted-foreground mb-2">NPK Soil Nutrients</div>
-        {(["N","P","K"] as const).map((k, i) => {
-          const val = [field.npk.n, field.npk.p, field.npk.k][i];
-          const tone = val > 75 ? "bg-healthy" : val > 55 ? "bg-nutrient" : "bg-disease";
-          return (
-            <div key={k} className="flex items-center gap-3 mb-1.5 last:mb-0">
-              <span className="w-4 text-xs font-bold text-muted-foreground">{k}</span>
-              <div className="flex-1 h-2 rounded-full bg-accent overflow-hidden">
-                <div className={`h-full ${tone}`} style={{ width: `${val}%`, transition: "width 1s ease-out" }} />
-              </div>
-              <span className="text-xs font-medium tabular-nums w-9 text-right">{val}%</span>
-            </div>
-          );
-        })}
-      </div>
 
       <div className="m-4 mt-2 p-3 rounded-xl border border-primary/20 bg-primary/5">
         <div className="flex items-center gap-2 text-[11px] font-semibold text-primary mb-1">
@@ -1273,41 +1275,52 @@ function Stat({ icon: Icon, label, value, tone }: { icon: any; label: string; va
 
 /* ---------------- AI Insights Component ---------------- */
 function AiInsights({ insights }: { insights: any[] }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-soft)] p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-soft)] p-4 transition-all">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between cursor-pointer focus:outline-none"
+      >
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg grid place-items-center text-primary-foreground" style={{ background: "var(--gradient-primary)" }}>
+          <div className="h-8 w-8 rounded-lg grid place-items-center text-primary-foreground shrink-0" style={{ background: "var(--gradient-primary)" }}>
             <Bot className="h-4 w-4" />
           </div>
-          <div>
+          <div className="text-left">
             <div className="text-sm font-semibold tracking-tight">AI Crop Doctor</div>
-            <div className="text-xs text-muted-foreground">Indian Crop-Health Diagnostic Models</div>
+            <div className="text-xs text-muted-foreground truncate">Indian Crop-Health Diagnostic Models</div>
           </div>
         </div>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-healthy/15 text-healthy font-semibold">Online</span>
-      </div>
-      <ul className="space-y-2">
-        {insights.map((i, idx) => {
-          const Icon = i.icon || Bot;
-          const tone =
-            i.tone === "alert" ? "border-disease/30 bg-disease/5 text-disease" :
-            i.tone === "warn"  ? "border-nutrient/30 bg-nutrient/5 text-nutrient" :
-            i.tone === "good"  ? "border-healthy/30 bg-healthy/5 text-healthy" :
-                                 "border-water/30 bg-water/5 text-water";
-          return (
-            <li key={idx} className={`flex gap-3 p-2.5 rounded-xl border ${tone}`}>
-              <div className="h-7 w-7 rounded-lg grid place-items-center bg-card border border-border shrink-0">
-                <Icon className="h-3.5 w-3.5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[12px] text-foreground font-semibold leading-snug">{i.text}</p>
-                <div className="text-[9.5px] text-muted-foreground mt-0.5">{i.meta}</div>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-healthy/15 text-healthy font-semibold">Online</span>
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
+      
+      {isOpen && (
+        <ul className="space-y-2 mt-4 animate-in slide-in-from-top-2 fade-in duration-300">
+          {insights.map((i, idx) => {
+            const Icon = i.icon || Bot;
+            const tone =
+              i.tone === "alert" ? "border-disease/30 bg-disease/5 text-disease" :
+              i.tone === "warn"  ? "border-nutrient/30 bg-nutrient/5 text-nutrient" :
+              i.tone === "good"  ? "border-healthy/30 bg-healthy/5 text-healthy" :
+                                   "border-water/30 bg-water/5 text-water";
+            return (
+              <li key={idx} className={`flex gap-3 p-2.5 rounded-xl border ${tone}`}>
+                <div className="h-7 w-7 rounded-lg grid place-items-center bg-card border border-border shrink-0">
+                  <Icon className="h-3.5 w-3.5" />
+                </div>
+                <div className="min-w-0 text-left">
+                  <p className="text-[12px] text-foreground font-semibold leading-snug">{i.text}</p>
+                  <div className="text-[9.5px] text-muted-foreground mt-0.5">{i.meta}</div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
@@ -1322,7 +1335,6 @@ function WeatherPanel({ data }: { data: any }) {
           <div className="h-8 w-8 rounded-lg bg-water/10 grid place-items-center"><CloudSun className="h-4 w-4 text-water" /></div>
           <div>
             <div className="text-sm font-semibold tracking-tight">Weather Intelligence · 7 Days</div>
-            <div className="text-xs text-muted-foreground">Indian Meteorological Dept (IMD) Grid Feed</div>
           </div>
         </div>
       </div>
@@ -1339,10 +1351,8 @@ function WeatherPanel({ data }: { data: any }) {
           );
         })}
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+      <div className="mt-3 grid grid-cols-1 gap-2 text-center">
         <Mini icon={Wind} label="Wind" value={data.current.wind} />
-        <Mini icon={Droplets} label="Humidity" value={data.current.humidity} />
-        <Mini icon={Thermometer} label="Soil Temp" value={data.current.soilTemp} />
       </div>
     </div>
   );

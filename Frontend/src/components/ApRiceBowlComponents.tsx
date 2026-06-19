@@ -70,23 +70,6 @@ export function ApRiceBowlSection() {
   const { riceBowlIndex, alerts, comparison, loading: dashLoading } = useDashboard();
   const { searchCoords, searchQuery, villageAnalysis } = useDashboardContext();
 
-  // Listen to dashboard search coordinates to sync bottom map
-  useEffect(() => {
-    if (searchCoords) {
-      setMapTarget({ lat: searchCoords[0], lng: searchCoords[1], zoom: 13 });
-      
-      const matchedVillage = villages.find(
-        v => v.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-             searchQuery.toLowerCase().includes(v.name.toLowerCase())
-      );
-      if (matchedVillage) {
-        setSelectedVillageId(matchedVillage.id);
-      } else {
-        setSelectedVillageId(null);
-      }
-      setSelectedFieldId(null);
-    }
-  }, [searchCoords, searchQuery, villages]);
 
   // Find active village object
   const activeVillage = villages.find(v => v.id === selectedVillageId);
@@ -171,16 +154,7 @@ export function ApRiceBowlSection() {
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
               maxZoom={18}
             />
-            {searchCoords && villageAnalysis?.imageUrl && (
-              <ImageOverlay
-                url={villageAnalysis.imageUrl}
-                bounds={[
-                  [searchCoords[0] - 0.015, searchCoords[1] - 0.015],
-                  [searchCoords[0] + 0.015, searchCoords[1] + 0.015]
-                ]}
-                opacity={0.8}
-              />
-            )}
+
             <MapController targetLat={mapTarget.lat} targetLng={mapTarget.lng} targetZoom={mapTarget.zoom} />
 
             {/* Render Districts (visible when zoomed out) */}
@@ -294,16 +268,7 @@ export function ApRiceBowlSection() {
                   <span className="font-medium">{fieldDetail.growth_stage}</span>
                 </div>
                 
-                {fieldHealth?.npk && (
-                  <div className="py-2 border-b border-border">
-                    <span className="text-muted-foreground text-xs block mb-1">NPK Telemetry Readings</span>
-                    <div className="flex gap-4 text-xs font-bold">
-                      <span className="text-emerald-500">N: {fieldHealth.npk.n}</span>
-                      <span className="text-yellow-500">P: {fieldHealth.npk.p}</span>
-                      <span className="text-blue-500">K: {fieldHealth.npk.k}</span>
-                    </div>
-                  </div>
-                )}
+
                 
                 <div className="mt-3.5 bg-primary/5 p-3 rounded-lg border border-primary/15">
                   <div className="text-xs font-bold text-primary mb-1">AI Crop Recommendation</div>
@@ -318,7 +283,7 @@ export function ApRiceBowlSection() {
         <div className="space-y-6">
           <div className="bg-card border border-border p-5 rounded-2xl shadow-sm">
             <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Info className="h-5 w-5 text-primary" /> Active Paddy Alerts</h3>
-            <div className="space-y-3.5 max-h-[220px] overflow-y-auto pr-1">
+            <div className="space-y-3.5">
               {alerts.length === 0 ? (
                 <div className="text-xs text-muted-foreground text-center py-6">No active alerts reported.</div>
               ) : (

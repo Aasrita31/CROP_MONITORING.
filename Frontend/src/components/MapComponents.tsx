@@ -463,8 +463,6 @@ export function FloatingFieldPanel({ field, onClose }: { field: any, onClose: ()
   const { dashboardMode } = useApp();
   if (!field) return null;
   
-  const npk = field.npk || { n: 72, p: 65, k: 80 };
-
   if (dashboardMode === 'farmer') {
     const isHealthy = field.dominant === "healthy";
     const isCritical = field.dominant === "water" || field.dominant === "disease";
@@ -540,28 +538,7 @@ export function FloatingFieldPanel({ field, onClose }: { field: any, onClose: ()
           </div>
         </div>
 
-        {/* NPK Status */}
-        <div className="space-y-2">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-            <span className="flex items-center gap-1"><FlaskConical className="h-3 w-3" /> NPK Macronutrients</span>
-            <span className="text-primary">{field.aiConfidence} Confidence</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: 'N', val: Math.round(npk.n), color: 'bg-emerald-500' },
-              { label: 'P', val: Math.round(npk.p), color: 'bg-blue-500' },
-              { label: 'K', val: Math.round(npk.k), color: 'bg-amber-500' }
-            ].map(n => (
-              <div key={n.label} className="bg-accent/30 rounded-lg p-2 text-center border border-border">
-                <div className="text-[10px] font-bold text-muted-foreground">{n.label}</div>
-                <div className="text-sm font-bold mt-0.5">{n.val}%</div>
-                <div className="h-1 w-full bg-accent mt-1.5 rounded-full overflow-hidden">
-                  <div className={`h-full ${n.color}`} style={{ width: `${n.val}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+
 
         {/* Additional Details */}
         <div className="bg-card rounded-xl border border-border divide-y divide-border text-xs">
