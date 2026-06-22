@@ -21,6 +21,8 @@ export interface VillageAnalysisResult {
   captureDate?: string;
   source?: string;
   imageUrl?: string;
+  fields?: any[];
+  [key: string]: any;
 }
 
 export const villageSearchApi = {

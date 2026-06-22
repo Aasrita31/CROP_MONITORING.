@@ -14,6 +14,7 @@ interface DashboardContextType {
   villageAnalysis: any;
   setVillageAnalysis: (analysis: any) => void;
   searchFields: any[];
+  setSearchFields: (fields: any[]) => void;
   activePanel: string;
   setActivePanel: (panel: string) => void;
 }

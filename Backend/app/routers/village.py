@@ -11,6 +11,7 @@ from app.schemas.response_models import (
 from app.services.sentinel_service import SentinelService
 from typing import List, Dict, Any
 import requests
+import numpy as np
 
 router = APIRouter(prefix="/villages", tags=["Villages"])
 search_router = APIRouter(prefix="/village", tags=["Village Search"])
@@ -141,18 +142,67 @@ def get_analysis_village(
     # 2. Fetch Bands
     bands = SentinelService.fetch_sentinel2_bands(location['boundingbox'])
     
-    # 3. Calculate NDVI
+    # 3. Calculate NDVI & NDMI
     from app.services.ndvi_service import NdviService
-    ndvi_array = NdviService.calculate_ndvi(bands['b4'], bands['b8'])
-    
-    # 4. Generate Metrics
+    # 4. Process Arrays
+    ndvi_array = 1.5 * ((bands['b8'] - bands['b4']) / (bands['b8'] + bands['b4'] + 1e-10))
+    ndmi_array = (bands['b8'] - bands['b11']) / (bands['b8'] + bands['b11'] + 1e-10)
+    evi_array = 2.5 * ((bands['b8'] - bands['b4']) / (bands['b8'] + 6 * bands['b4'] - 7.5 * bands['b2'] + 1 + 1e-10))
+    savi_array = ((bands['b8'] - bands['b4']) / (bands['b8'] + bands['b4'] + 0.5)) * 1.5
+
     metrics = NdviService.get_village_metrics(ndvi_array)
+    band_avgs = NdviService.get_village_band_averages(bands['b4'], bands['b8'], bands['b11'])
+    valid_ndmi = ndmi_array[ndmi_array > -0.99]
+    ndmi_mean = float(valid_ndmi.mean()) if len(valid_ndmi) > 0 else 0.0
+    ndmi_min = float(valid_ndmi.min()) if len(valid_ndmi) > 0 else 0.0
+    ndmi_max = float(valid_ndmi.max()) if len(valid_ndmi) > 0 else 0.0
+
+    valid_evi = evi_array[(evi_array > -1) & (evi_array < 1.5)]
+    evi_mean = float(valid_evi.mean()) if len(valid_evi) > 0 else 0.0
+    evi_min = float(valid_evi.min()) if len(valid_evi) > 0 else 0.0
+    evi_max = float(valid_evi.max()) if len(valid_evi) > 0 else 0.0
+
+    if evi_mean > 0.55:
+        growth_stage = "Grain Filling"
+    elif evi_mean > 0.4:
+        growth_stage = "Flowering"
+    elif evi_mean > 0.25:
+        growth_stage = "Vegetative"
+    elif evi_mean > 0.15:
+        growth_stage = "Tillering"
+    else:
+        growth_stage = "Seedling"
+        
+    biomass_estimate = max(0, evi_mean * 12.5)
+    
+    # SAVI stats
+    valid_savi = savi_array[savi_array > -0.1]
+    savi_mean = float(valid_savi.mean()) if len(valid_savi) > 0 else 0.0
+    
+    # Calculate crop cover vs bare soil
+    # Threshold for crop cover is savi > 0.35
+    total_valid = len(valid_savi)
+    if total_valid > 0:
+        crop_cover_pct = float(np.sum(valid_savi > 0.35)) / total_valid * 100
+        bare_soil_pct = 100.0 - crop_cover_pct
+    else:
+        crop_cover_pct = 0.0
+        bare_soil_pct = 100.0
+    
     
     # Estimate yield based on health score (e.g. 100 health = ~7.5 t/ha, 0 = ~1.0 t/ha)
     yield_pred = round(1.0 + (metrics['health_score'] / 100.0) * 6.5, 1)
 
-    # 5. Generate transparent NDVI Heatmap Overlay
+    # 5. Generate transparent Heatmap Overlays and Base Image
     image_data_uri = NdviService.generate_heatmap_overlay(ndvi_array)
+    ndmi_image_data_uri = NdviService.generate_ndmi_heatmap_overlay(ndmi_array)
+    evi_image_data_uri = NdviService.generate_evi_heatmap_overlay(evi_array)
+    evi_historical_image_data_uri = NdviService.generate_historical_evi_heatmap(evi_array)
+    savi_image_data_uri = NdviService.generate_savi_heatmap_overlay(savi_array)
+    true_color_image_data_uri = NdviService.generate_true_color_image(bands['b2'], bands['b3'], bands['b4'])
+    
+    # 5.1 Extract crop fields and calculate mean NDVI/NDMI
+    extracted_fields = NdviService.extract_crop_polygons(ndvi_array, ndmi_array, location['boundingbox'])
 
     # 6. Fetch Copernicus product catalog metadata
     copernicus_meta = SentinelService.fetch_product_metadata(location['boundingbox'])
@@ -186,18 +236,46 @@ def get_analysis_village(
             "bandwidth": "145 nm",
             "resolution": "10 meters",
             "purpose": "Reflected strongly by leaf cell structure, indicating biomass (used in NDVI)."
+        },
+        {
+            "band": "B11 (Short-Wave Infrared - SWIR)",
+            "centerWavelength": "1610 nm",
+            "bandwidth": "143 nm",
+            "resolution": "20 meters (resampled to 10m)",
+            "purpose": "Sensitivity to water content in leaves, useful for computing NDMI."
         }
     ]
 
     return {
         "ndvi": metrics['avg_ndvi'],
+        "ndmi": round(ndmi_mean, 2),
+        "ndmiMin": round(ndmi_min, 2),
+        "ndmiMax": round(ndmi_max, 2),
+        "b4": round(band_avgs['b4'], 4),
+        "b8": round(band_avgs['b8'], 4),
+        "b11": round(band_avgs['b11'], 4),
         "healthScore": metrics['health_score'],
         "diseaseRisk": int(min(100, max(0, metrics['critical_pct'] + (metrics['water_stress_pct'] * 0.5)))),
         "waterStress": int(min(100, max(0, metrics['water_stress_pct'] + (metrics['critical_pct'] * 0.2)))),
         "yieldPrediction": yield_pred,
         "imageUrl": image_data_uri,
+        "ndmiImageUrl": ndmi_image_data_uri,
+        "trueColorImageUrl": true_color_image_data_uri,
+        "evi": round(evi_mean, 3),
+        "eviMin": round(evi_min, 3),
+        "eviMax": round(evi_max, 3),
+        "eviImageUrl": evi_image_data_uri,
+        "eviHistoricalImageUrl": evi_historical_image_data_uri,
+        "growthStage": growth_stage,
+        "biomassEstimate": round(biomass_estimate, 2),
+        "savi": round(savi_mean, 3),
+        "saviImageUrl": savi_image_data_uri,
+        "cropCoverPct": round(crop_cover_pct, 1),
+        "bareSoilPct": round(bare_soil_pct, 1),
         "captureDate": bands.get('capture_date', "2026-06-18T12:00:00Z"),
         "source": bands.get('source', "Copernicus Sentinel-2 L2A (Real Data)"),
+        "bounds": bands.get('bounds'),
+        "fields": extracted_fields,
         "copernicusMetadata": copernicus_meta,
         "bandwidthDetails": bandwidth_details
     }

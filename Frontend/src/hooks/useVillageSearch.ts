@@ -76,17 +76,10 @@ export function useVillageSearch() {
 
 
       let realFields: ReturnType<typeof buildFieldFromCopernicusPolygon>[] = [];
-      try {
-        const res = await fetch(
-          `http://127.0.0.1:8000/api/satellite/fields?latitude=${searchData.latitude}&longitude=${searchData.longitude}`,
-        );
-        const realPolygons = await res.json();
-
-        realFields = realPolygons.map((poly: Parameters<typeof buildFieldFromCopernicusPolygon>[0], i: number) =>
+      if (enrichedAnalysis.fields && Array.isArray(enrichedAnalysis.fields)) {
+        realFields = enrichedAnalysis.fields.map((poly: any, i: number) =>
           buildFieldFromCopernicusPolygon(poly, i, villageName, enrichedAnalysis),
         );
-      } catch (e) {
-        console.error("Failed to load Copernicus field polygons:", e);
       }
 
       const villageLabel = normalizeVillageName(villageName);

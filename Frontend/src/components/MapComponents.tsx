@@ -263,17 +263,17 @@ export function DashboardInteractiveMap({
     }
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/satellite/fields?latitude=${lat}&longitude=${lon}`);
-      const realPolygons = await res.json();
-
       const analysisRes = await fetch(
         `http://127.0.0.1:8000/api/analysis/village?name=${encodeURIComponent(name)}&latitude=${lat}&longitude=${lon}`,
       );
       const analysisData = analysisRes.ok ? await analysisRes.json() : null;
 
-      const realFields = realPolygons.map((poly: Parameters<typeof buildFieldFromCopernicusPolygon>[0], i: number) =>
-        buildFieldFromCopernicusPolygon(poly, i, name, analysisData),
-      );
+      let realFields: any[] = [];
+      if (analysisData && analysisData.fields && Array.isArray(analysisData.fields)) {
+        realFields = analysisData.fields.map((poly: any, i: number) =>
+          buildFieldFromCopernicusPolygon(poly, i, name, analysisData),
+        );
+      }
 
       setDynamicFields((prev) => {
         const newFields = [

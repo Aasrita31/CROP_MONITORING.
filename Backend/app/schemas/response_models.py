@@ -126,13 +126,33 @@ class SatelliteLatestResponse(BaseModel):
 
 class VillageAnalysisResult(BaseModel):
     ndvi: float
+    ndmi: float
+    ndmiMin: float
+    ndmiMax: float
+    b4: float
+    b8: float
+    b11: float
     healthScore: int
     diseaseRisk: int
     waterStress: int
     yieldPrediction: float
     imageUrl: Optional[str] = None
+    ndmiImageUrl: Optional[str] = None
+    trueColorImageUrl: Optional[str] = None
+    evi: Optional[float] = None
+    eviMin: Optional[float] = None
+    eviMax: Optional[float] = None
+    eviImageUrl: Optional[str] = None
+    eviHistoricalImageUrl: Optional[str] = None
+    growthStage: Optional[str] = None
+    biomassEstimate: Optional[float] = None
+    savi: Optional[float] = None
+    saviImageUrl: Optional[str] = None
+    cropCoverPct: Optional[float] = None
+    bareSoilPct: Optional[float] = None
     captureDate: Optional[str] = None
     source: Optional[str] = None
+    bounds: Optional[List[List[float]]] = None
+    fields: Optional[List[Dict[str, Any]]] = None
     copernicusMetadata: Optional[Dict[str, Any]] = None
     bandwidthDetails: Optional[List[Dict[str, Any]]] = None
-

@@ -86,12 +86,12 @@ class SentinelService:
         //VERSION=3
         function setup() {
             return {
-                input: ["B04", "B08", "dataMask"],
-                output: { bands: 2, sampleType: "FLOAT32" }
+                input: ["B02", "B03", "B04", "B08", "B11", "dataMask"],
+                output: { bands: 5, sampleType: "FLOAT32" }
             };
         }
         function evaluatePixel(sample) {
-            return [sample.B04, sample.B08];
+            return [sample.B02, sample.B03, sample.B04, sample.B08, sample.B11];
         }
         """
         
@@ -144,12 +144,18 @@ class SentinelService:
         # Parse the TIFF bytes using rasterio
         with MemoryFile(response.content) as memfile:
             with memfile.open() as dataset:
-                b4_red = dataset.read(1)
-                b8_nir = dataset.read(2)
+                b2_blue = dataset.read(1)
+                b3_green = dataset.read(2)
+                b4_red = dataset.read(3)
+                b8_nir = dataset.read(4)
+                b11_swir = dataset.read(5)
                 
         return {
+            "b2": b2_blue,
+            "b3": b3_green,
             "b4": b4_red,
             "b8": b8_nir,
+            "b11": b11_swir,
             "bounds": [[min_lat, min_lon], [max_lat, max_lon]],
             "capture_date": end_time.strftime("%Y-%m-%dT%H:%M:%SZ"), # Note: CDSE Catalog API is needed for exact date, using fetch date for now
             "source": "Copernicus Sentinel-2 L2A (Real Data)"

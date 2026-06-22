@@ -25,6 +25,10 @@ import { useApp } from "@/context/AppContext";
 import { useDashboardContext } from "@/context/DashboardContext";
 import { useVillageSearch } from "@/hooks/useVillageSearch";
 import { lazy, Suspense } from "react";
+import { NdviExplanationPanel } from "@/components/NdviExplanationPanel";
+import { NdmiExplanationPanel } from "@/components/NdmiExplanationPanel";
+import { EviExplanationPanel } from "@/components/EviExplanationPanel";
+import { SaviExplanationPanel } from "@/components/SaviExplanationPanel";
 
 const ApRiceBowlSection = lazy(() => import("@/components/ApRiceBowlComponents").then(m => ({ default: m.ApRiceBowlSection })));
 
@@ -245,7 +249,7 @@ function Dashboard() {
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const { farm, setFarm, crop, activeFarm, weatherData, nationalNdvi, dashboardMode, setDashboardMode } = useApp();
-  const { searchCoords, searchQuery, villageAnalysis, searchFields, activePanel } = useDashboardContext();
+  const { searchCoords, searchQuery, villageAnalysis, searchFields, activePanel, selectedDistrictId } = useDashboardContext();
 
   const mapCenter = useMemo<[number, number]>(() => {
     if (searchCoords) return searchCoords;
@@ -339,6 +343,14 @@ function Dashboard() {
                 </Suspense>
               </ClientOnly>
             </div>
+          ) : activePanel === "Crop Health (NDVI)" ? (
+            <NdviExplanationPanel villageName={searchQuery} villageAnalysis={villageAnalysis} />
+          ) : activePanel === "Water Status (NDMI)" ? (
+            <NdmiExplanationPanel villageName={searchQuery} villageAnalysis={villageAnalysis} />
+          ) : activePanel === "Vegetation Growth (EVI)" ? (
+            <EviExplanationPanel villageName={searchQuery} villageAnalysis={villageAnalysis} />
+          ) : activePanel === "Soil Visibility (SAVI)" ? (
+            <SaviExplanationPanel villageName={searchQuery} villageAnalysis={villageAnalysis} />
           ) : (
             <AnalyticsPanel title={activePanel} villageName={searchQuery} />
           )}
@@ -1024,8 +1036,47 @@ function FieldPanel({ field, crop, villageAnalysis, villageName }: { field: any 
       }
     ];
 
+    if (dashboardMode === "farmer") {
+      return (
+        <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)] overflow-hidden animate-in fade-in">
+          <div className="p-5 border-b border-border bg-gradient-to-br from-green-500/10 to-transparent">
+            <div className="flex justify-between items-start">
+              <div>
+                <div className="text-xs font-bold text-green-600 uppercase tracking-widest mb-1">Village Overview</div>
+                <h2 className="text-2xl font-black text-foreground">{villageName || "Village Overview"}</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                 <span className="text-[10px] px-2 py-1 bg-green-500/20 text-green-700 font-bold rounded flex items-center gap-1"><Leaf className="w-3 h-3"/> Farmer Mode</span>
+              </div>
+            </div>
+          </div>
+          <div className="p-5 space-y-4">
+              <div>
+                <div className="text-sm text-muted-foreground uppercase tracking-wider font-bold animate-in slide-in-from-top-2 duration-500">Overall Village Health</div>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <div className="text-6xl font-black text-emerald-500 animate-in zoom-in duration-500 delay-150 fill-mode-both drop-shadow-sm">{Math.round(villageAnalysis.healthScore)}</div>
+                  <div className="text-2xl text-muted-foreground animate-in fade-in duration-700 delay-300 fill-mode-both">/100</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="animate-in slide-in-from-left-4 duration-500 delay-150 fill-mode-both hover:scale-105 transition-transform"><Stat icon={Leaf} label="Vegetation" value={villageAnalysis.ndvi > 0.4 ? "Good" : "Stressed"} tone={(villageAnalysis.ndvi > 0.4) ? "healthy" : "disease"} /></div>
+                <div className="animate-in slide-in-from-right-4 duration-500 delay-200 fill-mode-both hover:scale-105 transition-transform"><Stat icon={Droplets} label="Water Status" value={villageAnalysis.waterStress > 30 ? "Needs Water" : "Sufficient"} tone={(villageAnalysis.waterStress > 30) ? "water" : "healthy"} /></div>
+                <div className="animate-in slide-in-from-left-4 duration-500 delay-250 fill-mode-both hover:scale-105 transition-transform"><Stat icon={Microscope} label="Pest/Disease" value={villageAnalysis.diseaseRisk > 20 ? "High Risk" : "Low Risk"} tone={(villageAnalysis.diseaseRisk > 20) ? "disease" : "healthy"} /></div>
+                <div className="animate-in slide-in-from-right-4 duration-500 delay-300 fill-mode-both hover:scale-105 transition-transform"><Stat icon={TrendingUp} label="Est. Yield" value={`${villageAnalysis.yieldPrediction || "N/A"} t/ha`} tone="healthy" /></div>
+              </div>
+              <div className={`mt-5 p-4 rounded-xl border transition-all animate-in slide-in-from-bottom-4 duration-500 delay-500 fill-mode-both ${villageAnalysis.waterStress > 30 ? "bg-red-50/90 border-red-200 shadow-[0_0_20px_rgba(239,68,68,0.15)] animate-[pulse_4s_ease-in-out_infinite]" : "bg-green-50/90 border-green-200 shadow-[0_0_20px_rgba(34,197,94,0.1)]"}`}>
+                <p className={`text-xs leading-relaxed font-semibold flex items-start gap-2 ${villageAnalysis.waterStress > 30 ? "text-red-800" : "text-green-800"}`}>
+                  {villageAnalysis.waterStress > 30 ? <Droplets className="w-5 h-5 shrink-0 text-red-600 animate-bounce" /> : <CheckCircle2 className="w-5 h-5 shrink-0 text-green-600" />}
+                  <span className="mt-0.5">{villageAnalysis.waterStress > 30 ? "Significant water stress detected in the village. Recommend checking irrigation systems immediately." : "Crop health across the village is stable. Continue normal monitoring."}</span>
+                </p>
+              </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)] overflow-hidden">
+      <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)] overflow-hidden animate-in fade-in">
         <div className="p-5 border-b border-border bg-gradient-to-br from-emerald-500/10 to-transparent">
           <div className="flex justify-between items-start">
             <div>
@@ -1033,6 +1084,7 @@ function FieldPanel({ field, crop, villageAnalysis, villageName }: { field: any 
               <h2 className="text-2xl font-black text-foreground">{villageName || "Village Overview"}</h2>
             </div>
             <div className="flex items-center gap-2">
+               <span className="text-[10px] px-2 py-1 bg-blue-500/10 text-blue-600 font-bold rounded border border-blue-500/20 flex items-center gap-1"><Activity className="w-3 h-3"/> Expert Mode</span>
                <span className="text-[10px] px-2 py-1 bg-emerald-500/20 text-emerald-600 font-bold rounded">Live Data</span>
             </div>
           </div>
