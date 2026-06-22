@@ -17,16 +17,17 @@ const SIDEBAR_GROUPS = [
   {
     group: "Farm Overview",
     items: [
-      { label: "Dashboard", icon: Grid3x3 },
+      { label: "Dashboard",    icon: Grid3x3 },
+      { label: "Farm Advisor", icon: Bot },
     ]
   },
   {
     group: "Satellite Analytics",
     items: [
-      { label: "Crop Health (NDVI)", icon: Leaf },
-      { label: "Water Status (NDMI)", icon: Droplets },
-      { label: "Vegetation Growth (EVI)", icon: Sprout },
-      { label: "Soil Visibility (SAVI)", icon: Hexagon },
+      { label: "Crop Health (NDVI)",      icon: Leaf     },
+      { label: "Water Status (NDMI)",     icon: Droplets },
+      { label: "Vegetation Growth (EVI)", icon: Sprout   },
+      { label: "Soil Visibility (SAVI)",  icon: Hexagon  },
     ]
   },
   {
@@ -159,7 +160,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                         <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`} />
                         {!collapsed && <span className="truncate">{it.label}</span>}
                       </div>
-                      {!collapsed && it.alert && (
+                      {!collapsed && (it as any).alert && (
                         <span className="h-2 w-2 rounded-full bg-disease animate-pulse" />
                       )}
                     </button>
@@ -184,8 +185,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { activeFarm, weatherData, aiOpen, setAiOpen, addFieldOpen, setAddFieldOpen, farm, crop } = useApp();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  if (!activeFarm || !weatherData) {
-    return <div className="min-h-screen bg-background flex items-center justify-center text-foreground font-semibold">Loading Global Data...</div>;
+  if (!activeFarm) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <div className="flex items-center gap-3">
+          <span className="relative flex h-4 w-4">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-primary" />
+          </span>
+          <span className="text-base font-semibold text-foreground">Connecting to AgriTwin Intelligence...</span>
+        </div>
+        <p className="text-xs text-muted-foreground">Fetching district data from the backend</p>
+      </div>
+    );
   }
 
   return (

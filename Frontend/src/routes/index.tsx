@@ -29,6 +29,7 @@ import { NdviExplanationPanel } from "@/components/NdviExplanationPanel";
 import { NdmiExplanationPanel } from "@/components/NdmiExplanationPanel";
 import { EviExplanationPanel } from "@/components/EviExplanationPanel";
 import { SaviExplanationPanel } from "@/components/SaviExplanationPanel";
+import { FarmerAdvisorPanel } from "@/components/FarmerAdvisorPanel";
 
 const ApRiceBowlSection = lazy(() => import("@/components/ApRiceBowlComponents").then(m => ({ default: m.ApRiceBowlSection })));
 
@@ -134,13 +135,13 @@ function VillageSearchPanel() {
   const [stepIndex, setStepIndex] = useState(0);
 
   const STEPS = [
-    "Contacting OpenStreetMap Geocoding API...",
-    "Geolocating village coordinates...",
-    "Contacting Sentinel-2 Satellite registry...",
-    "Retrieving latest spectral bands...",
-    "Calculating NDVI indices...",
-    "Running machine learning health classifications...",
-    "Updating AP Paddy monitoring digital twin..."
+    "Geocoding village coordinates via OpenStreetMap...",
+    "Authenticating with Copernicus Data Space (CDSE)...",
+    "Querying Sentinel-2 L2A imagery catalog...",
+    "Downloading B04 (Red), B08 (NIR), B11 (SWIR) bands...",
+    "Computing NDVI, NDMI, EVI, SAVI indices...",
+    "Analyzing crop cover, growth stage & yield estimate...",
+    "Building your Farmer Decision Report...",
   ];
 
   useEffect(() => {
@@ -314,15 +315,15 @@ function Dashboard() {
                   </Suspense>
                 </ClientOnly>
               </div>
-              
             </div>
             <div className="space-y-6">
+              {/* Mode Toggle */}
               <div className="flex w-full bg-accent/40 rounded-xl p-1 border border-border shadow-sm">
                 <button 
                   onClick={() => setDashboardMode("farmer")} 
                   className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${dashboardMode === "farmer" ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
                 >
-                  <Leaf className="h-4 w-4" /> Farmer Mode
+                  <Leaf className="h-4 w-4" /> Farmer View
                 </button>
                 <button 
                   onClick={() => setDashboardMode("expert")} 
@@ -331,8 +332,18 @@ function Dashboard() {
                   <Activity className="h-4 w-4" /> Expert Mode
                 </button>
               </div>
-              <FieldPanel field={field} crop={crop} villageAnalysis={villageAnalysis} villageName={searchQuery} />
-              <AiInsights insights={activeFarm.insights} />
+              {/* Right panel — farmer view uses FarmerAdvisorPanel, expert uses raw FieldPanel */}
+              {dashboardMode === "farmer" ? (
+                <FarmerAdvisorPanel
+                  villageName={searchQuery}
+                  villageAnalysis={villageAnalysis}
+                />
+              ) : (
+                <>
+                  <FieldPanel field={field} crop={crop} villageAnalysis={villageAnalysis} villageName={searchQuery} />
+                  <AiInsights insights={activeFarm.insights} />
+                </>
+              )}
             </div>
           </section>
           ) : activePanel === "AP Rice Bowl" ? (
@@ -351,6 +362,11 @@ function Dashboard() {
             <EviExplanationPanel villageName={searchQuery} villageAnalysis={villageAnalysis} />
           ) : activePanel === "Soil Visibility (SAVI)" ? (
             <SaviExplanationPanel villageName={searchQuery} villageAnalysis={villageAnalysis} />
+          ) : activePanel === "Farm Advisor" ? (
+            <FarmerAdvisorPanel
+              villageName={searchQuery}
+              villageAnalysis={villageAnalysis}
+            />
           ) : (
             <AnalyticsPanel title={activePanel} villageName={searchQuery} />
           )}
@@ -1509,7 +1525,7 @@ function AiAssistantDrawer({ onClose, farm, crop }: { onClose: () => void; farm:
     let stateId = "pb";
     if (farm === "Maharashtra Grape Orchards") stateId = "mh";
     else if (farm === "Vinh Long Estate") stateId = "vl";
-    fetch(`http://127.0.0.1:8000/api/ai/chat/${stateId}`)
+    fetch(`http://127.0.0.1:8080/api/ai/chat/${stateId}`)
       .then(r => r.json())
       .then(data => setMessages(data));
   }, [farm]);
@@ -1524,7 +1540,7 @@ function AiAssistantDrawer({ onClose, farm, crop }: { onClose: () => void; farm:
     if (farm === "Maharashtra Grape Orchards") stateId = "mh";
     else if (farm === "Vinh Long Estate") stateId = "vl";
 
-    fetch(`http://127.0.0.1:8000/api/ai/chat/${stateId}`, {
+    fetch(`http://127.0.0.1:8080/api/ai/chat/${stateId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: input })

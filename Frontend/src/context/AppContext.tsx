@@ -231,7 +231,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           .catch((err) => console.error("Error linking context data:", err));
 
         // Fetch Weather data
-        fetch(`http://127.0.0.1:8000/api/weather/${districtId}`)
+        fetch(`http://127.0.0.1:8080/api/weather/${districtId}`)
           .then(r => r.json())
           .then(data => {
             if (data.forecast) {
@@ -239,7 +239,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             }
             setWeatherData(data);
           })
-          .catch((e) => console.error("Error fetching weather:", e));
+          .catch((e) => {
+            console.warn("Weather fetch failed — showing fallback:", e);
+            // Use static fallback so the UI never hangs
+            setWeatherData({
+              temperature: 32,
+              humidity: 74,
+              windSpeed: 12,
+              condition: "Partly Cloudy",
+              forecast: []
+            });
+          });
       })
       .catch((e) => console.error("Error fetching districts list:", e));
   }, [farm]);

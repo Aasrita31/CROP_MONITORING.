@@ -19,7 +19,7 @@ export function AiAssistantDrawer({ onClose, farm, crop }: { onClose: () => void
     let stateId = "pb";
     if (farm === "Maharashtra Grape Orchards") stateId = "mh";
     else if (farm === "Vinh Long Estate") stateId = "vl";
-    fetch(`http://127.0.0.1:8000/api/ai/chat/${stateId}`)
+    fetch(`http://127.0.0.1:8080/api/ai/chat/${stateId}`)
       .then(r => r.json())
       .then(data => setMessages(data))
       .catch(console.error);
@@ -55,7 +55,7 @@ export function AiAssistantDrawer({ onClose, farm, crop }: { onClose: () => void
     if (farm === "Maharashtra Grape Orchards") stateId = "mh";
     else if (farm === "Vinh Long Estate") stateId = "vl";
 
-    fetch(`http://127.0.0.1:8000/api/ai/chat/${stateId}`, {
+    fetch(`http://127.0.0.1:8080/api/ai/chat/${stateId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: q })

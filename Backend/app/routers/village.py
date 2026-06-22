@@ -142,12 +142,16 @@ def get_analysis_village(
     # 2. Fetch Bands
     bands = SentinelService.fetch_sentinel2_bands(location['boundingbox'])
     
-    # 3. Calculate NDVI & NDMI
+    # 3. Calculate vegetation indices using standard formulas
     from app.services.ndvi_service import NdviService
-    # 4. Process Arrays
-    ndvi_array = 1.5 * ((bands['b8'] - bands['b4']) / (bands['b8'] + bands['b4'] + 1e-10))
+    # 4. Process Arrays — standard formulas, no bias multipliers
+    # NDVI: (NIR - Red) / (NIR + Red)  [range: -1 to 1]
+    ndvi_array = (bands['b8'] - bands['b4']) / (bands['b8'] + bands['b4'] + 1e-10)
+    # NDMI: (NIR - SWIR) / (NIR + SWIR)  [range: -1 to 1]
     ndmi_array = (bands['b8'] - bands['b11']) / (bands['b8'] + bands['b11'] + 1e-10)
-    evi_array = 2.5 * ((bands['b8'] - bands['b4']) / (bands['b8'] + 6 * bands['b4'] - 7.5 * bands['b2'] + 1 + 1e-10))
+    # EVI: 2.5 * (NIR - Red) / (NIR + 6*Red - 7.5*Blue + 1)  [range: -1 to ~1]
+    evi_array = 2.5 * ((bands['b8'] - bands['b4']) / (bands['b8'] + 6.0 * bands['b4'] - 7.5 * bands['b2'] + 1.0 + 1e-10))
+    # SAVI: ((NIR - Red) / (NIR + Red + L)) * (1 + L), L=0.5  [range: -1.5 to 1.5]
     savi_array = ((bands['b8'] - bands['b4']) / (bands['b8'] + bands['b4'] + 0.5)) * 1.5
 
     metrics = NdviService.get_village_metrics(ndvi_array)

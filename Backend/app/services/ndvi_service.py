@@ -219,8 +219,11 @@ class NdviService:
         critical_pct = float(np.sum(valid_pixels < 0.25)) / total * 100
         
         # Map to Health Score out of 100
-        # A perfectly healthy field (NDVI > 0.75 everywhere) would be 100.
-        health_score = int(min(100, max(0, avg_ndvi * 100 + 15)))
+        # Maps avg_ndvi range [0.0, 1.0] → health score [0, 100]
+        # Weighed by category composition for a more realistic score
+        health_score = int(min(100, max(0,
+            (healthy_pct * 1.0 + mod_stress_pct * 0.65 + water_stress_pct * 0.35 + critical_pct * 0.1)
+        )))
         
         return {
             "avg_ndvi": round(avg_ndvi, 2),
