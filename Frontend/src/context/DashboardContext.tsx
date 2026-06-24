@@ -1,4 +1,16 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
+
+export interface RegisteredField {
+  id: string;
+  name: string;
+  polygon: [number, number][]; // [lat, lon] pairs
+  areaAcres: number;
+  areaHectares: number;
+  villageName: string;
+  districtName: string;
+  landStatus: "sown" | "barren" | null;
+  createdAt: string;
+}
 
 interface DashboardContextType {
   selectedDistrictId: number | null;
@@ -17,6 +29,13 @@ interface DashboardContextType {
   setSearchFields: (fields: any[]) => void;
   activePanel: string;
   setActivePanel: (panel: string) => void;
+  // Farm Registration
+  registeredFields: RegisteredField[];
+  setRegisteredFields: (fields: RegisteredField[]) => void;
+  activeField: RegisteredField | null;
+  setActiveField: (field: RegisteredField | null) => void;
+  fieldPolygonAnalysis: any;
+  setFieldPolygonAnalysis: (analysis: any) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -29,7 +48,21 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [villageAnalysis, setVillageAnalysis] = useState<any>(null);
   const [searchFields, setSearchFields] = useState<any[]>([]);
-  const [activePanel, setActivePanel] = useState<string>("Dashboard");
+  const [activePanel, setActivePanel] = useState<string>("Farm Registration & Fields");
+  // Farm Registration state — persisted in localStorage
+  const [registeredFields, _setRegisteredFields] = useState<RegisteredField[]>(() => {
+    try {
+      const saved = localStorage.getItem("agritwin_registered_fields");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [activeField, setActiveField] = useState<RegisteredField | null>(null);
+  const [fieldPolygonAnalysis, setFieldPolygonAnalysis] = useState<any>(null);
+
+  const setRegisteredFields = (fields: RegisteredField[]) => {
+    _setRegisteredFields(fields);
+    try { localStorage.setItem("agritwin_registered_fields", JSON.stringify(fields)); } catch {}
+  };
 
   return (
     <DashboardContext.Provider
@@ -49,7 +82,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         searchFields,
         setSearchFields,
         activePanel,
-        setActivePanel
+        setActivePanel,
+        registeredFields,
+        setRegisteredFields,
+        activeField,
+        setActiveField,
+        fieldPolygonAnalysis,
+        setFieldPolygonAnalysis,
       }}
     >
       {children}

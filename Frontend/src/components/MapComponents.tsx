@@ -190,10 +190,9 @@ export function DashboardInteractiveMap({
   const [mapCenter, setMapCenter] = useState<[number, number]>(center);
   const [activeLayer, setActiveLayer] = useState<string>("satellite");
   const [timeLine, setTimeLine] = useState<number>(100);
-  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const { searchCoords, searchQuery, villageAnalysis, setSearchFields, setSearchCoords, setSearchQuery, selectedFieldId, setSelectedFieldId } = useDashboardContext();
   const [isLayersOpen, setIsLayersOpen] = useState(false);
   const { highlightedFields, dashboardMode, applyVillageSearchResults } = useApp();
-  const { searchCoords, searchQuery, villageAnalysis, setSearchFields, setSearchCoords, setSearchQuery } = useDashboardContext();
 
   // Helper to enrich fields with polygons
   const enrichFields = (rawFields: any[], cCenter: [number, number]) => {
@@ -478,11 +477,17 @@ export function FloatingFieldPanel({ field, onClose }: { field: any, onClose: ()
         <div className="p-4 space-y-3 text-sm">
           <div className="flex justify-between items-center pb-2 border-b border-border">
             <span className="text-muted-foreground font-bold">Crop Status</span>
-            <span className={`font-black ${conditionColor}`}>{field.condition || (isHealthy ? 'Healthy' : isCritical ? 'Critical' : 'Moderate Stress')}</span>
+            <div className="text-right">
+              <span className={`font-black ${conditionColor} block`}>{field.condition || (isHealthy ? 'Healthy' : isCritical ? 'Critical' : 'Moderate Stress')}</span>
+              <span className="text-[10px] text-muted-foreground">NDVI: {field.ndvi !== undefined ? field.ndvi.toFixed(3) : 'N/A'}</span>
+            </div>
           </div>
           <div className="flex justify-between items-center pb-2 border-b border-border">
             <span className="text-muted-foreground font-bold">Water Status</span>
-            <span className={`font-black ${field.water < 50 ? 'text-red-500' : field.water < 75 ? 'text-yellow-500' : 'text-green-500'}`}>{field.water < 50 ? 'Needs Water' : field.water < 75 ? 'Water Req. Soon' : 'Enough Water'}</span>
+            <div className="text-right">
+              <span className={`font-black block ${field.water < 50 ? 'text-red-500' : field.water < 75 ? 'text-yellow-500' : 'text-green-500'}`}>{field.water < 50 ? 'Needs Water' : field.water < 75 ? 'Water Req. Soon' : 'Enough Water'}</span>
+              <span className="text-[10px] text-muted-foreground">NDMI: {field.ndmi !== undefined ? field.ndmi.toFixed(3) : 'N/A'}</span>
+            </div>
           </div>
           <div className="flex justify-between items-center pb-2 border-b border-border">
             <span className="text-muted-foreground font-bold">Disease Risk</span>

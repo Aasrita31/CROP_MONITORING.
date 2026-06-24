@@ -242,9 +242,9 @@ class NdviService:
         """
         import cv2
         
-        # 1. Threshold for vegetation (NDVI > 0.45) and moisture (NDMI > 0.0)
-        # This strictly filters out buildings, roads, and bare land to isolate actual crops
-        mask = ((ndvi_array > 0.45) & (ndmi_array > 0.0)).astype(np.uint8) * 255
+        # 1. Threshold for vegetation (NDVI > 0.20) and moisture (NDMI > -0.2)
+        # We lowered this threshold to detect early-stage crops and fields under moderate stress.
+        mask = ((ndvi_array > 0.20) & (ndmi_array > -0.2)).astype(np.uint8) * 255
         
         # 2. Morphological operations to clean up noise (small isolated pixels)
         # Using a small kernel to preserve field shapes while removing noise
@@ -298,8 +298,8 @@ class NdviService:
                     "mean_ndmi": mean_ndmi
                 })
                 
-            # limit to top 15 polygons to avoid overwhelming UI
-            if len(polygons) >= 15:
+            # limit to top 50 polygons to avoid overwhelming UI but show significantly more fields
+            if len(polygons) >= 50:
                 break
                 
         # Fallback if no contours found (e.g. heavily urban area or off-season)

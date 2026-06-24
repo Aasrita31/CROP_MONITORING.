@@ -73,18 +73,51 @@ export function AiAssistantDrawer({ onClose, farm, crop }: { onClose: () => void
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-card border-l border-border h-full flex flex-col animate-in slide-in-from-right duration-300">
-        <div className="p-4 border-b border-border flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg grid place-items-center text-primary-foreground" style={{ background: "var(--gradient-primary)" }}>
-            <Bot className="h-5 w-5" />
+    <div className="fixed inset-0 z-[9999] flex justify-end pointer-events-none">
+      <div className="absolute inset-0 bg-transparent pointer-events-auto" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-card border-l border-border h-full flex flex-col animate-in slide-in-from-right duration-300 pointer-events-auto shadow-2xl">
+        <style dangerouslySetInnerHTML={{__html: `
+          @keyframes brilliantGold {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+          }
+          @keyframes intenseGlow {
+            0%, 100% { box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.3), 0 4px 20px rgba(255, 215, 0, 0.2); }
+            50% { box-shadow: inset 0 0 40px rgba(255, 215, 0, 0.7), 0 4px 30px rgba(255, 215, 0, 0.5); }
+          }
+          .gold-ai-header {
+            background: linear-gradient(270deg, #fcd34d, #fbbf24, #f59e0b, #fbbf24, #fcd34d);
+            background-size: 300% 300%;
+            animation: brilliantGold 4s ease infinite, intenseGlow 2.5s ease-in-out infinite;
+            border-bottom: 2px solid #b45309 !important;
+            color: #451a03; 
+          }
+          .gold-ai-header .subtitle {
+            color: #78350f;
+          }
+          .gold-ai-header .icon-bg {
+            background: #451a03 !important; 
+            color: #fbbf24 !important; 
+            box-shadow: 0 0 10px rgba(69, 26, 3, 0.5);
+          }
+          .gold-ai-header .close-btn {
+            color: #78350f;
+          }
+          .gold-ai-header .close-btn:hover {
+            background: rgba(69, 26, 3, 0.15);
+            color: #451a03;
+          }
+        `}} />
+        <div className="gold-ai-header p-4 border-b border-border flex items-center gap-3 relative z-10">
+          <div className="icon-bg h-9 w-9 rounded-lg grid place-items-center">
+            <Bot className="h-5 w-5 animate-pulse" />
           </div>
           <div>
-            <div className="text-sm font-semibold">AgriTwin AI Assistant</div>
-            <div className="text-[11px] text-muted-foreground">Precision Farming Diagnostic Model</div>
+            <div className="text-sm font-black tracking-tight">AgriTwin AI Assistant</div>
+            <div className="subtitle text-[10px] font-bold uppercase tracking-widest mt-0.5">Precision Farming Diagnostic Model</div>
           </div>
-          <button onClick={onClose} className="ml-auto p-1 rounded hover:bg-accent"><X className="h-4 w-4" /></button>
+          <button onClick={onClose} className="close-btn ml-auto p-1.5 rounded transition"><X className="h-5 w-5" /></button>
         </div>
         <div className="flex-1 p-4 space-y-3 overflow-y-auto">
           {messages.map((m, i) => (

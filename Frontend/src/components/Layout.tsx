@@ -15,28 +15,30 @@ import navavishkarLogo from "@/assets/navaviskar.png";
 /* ---------------- Sidebar Data ---------------- */
 const SIDEBAR_GROUPS = [
   {
-    group: "Farm Overview",
+    group: "🌾 Farm Management",
     items: [
-      { label: "Dashboard",    icon: Grid3x3 },
-      { label: "Farm Advisor", icon: Bot },
+      { label: "Farm Registration & Fields", icon: MapPin   },
+      { label: "Farm Advisor",               icon: Bot      },
+    ]
+  },
+  {
+    group: "Monitoring",
+    items: [
+      { label: "Village Monitoring",   icon: Grid3x3   },
+      { label: "AP Rice Bowl",         icon: MapPin    },
     ]
   },
   {
     group: "Satellite Analytics",
     items: [
-      { label: "Crop Health (NDVI)",      icon: Leaf     },
-      { label: "Water Status (NDMI)",     icon: Droplets },
-      { label: "Vegetation Growth (EVI)", icon: Sprout   },
-      { label: "Soil Visibility (SAVI)",  icon: Hexagon  },
+      { label: "Crop Health (NDVI)",        icon: Leaf       },
+      { label: "Water Status (NDMI)",       icon: Droplets   },
+      { label: "Vegetation Growth (EVI)",   icon: TrendingUp },
+      { label: "Soil Visibility (SAVI)",    icon: Hexagon    },
     ]
   },
-  {
-    group: "Regional Intelligence",
-    items: [
-      { label: "AP Rice Bowl", icon: MapPin },
-    ]
-  }
 ];
+
 
 function Select({ label, icon: Icon, value, onChange, options }: { label: string; icon: any; value: string; onChange: (s: string) => void; options: string[] }) {
   return (

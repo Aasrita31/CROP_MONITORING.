@@ -206,3 +206,98 @@
 
 .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 999px; }
+
+/* ── Farm Registration Premium Animations ────────────────────────── */
+
+/* Field polygon draw animation */
+@keyframes polygonDraw {
+  from { stroke-dashoffset: 1000; opacity: 0; }
+  to   { stroke-dashoffset: 0;    opacity: 1; }
+}
+
+/* Satellite scan sweep effect */
+@keyframes satelliteScan {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(100%);  opacity: 0; }
+}
+
+/* Field active glow pulse */
+@keyframes fieldGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  50%       { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.15); }
+}
+
+/* NDVI health badge color shift */
+@keyframes ndviColorShift {
+  0%   { filter: hue-rotate(0deg); }
+  50%  { filter: hue-rotate(20deg); }
+  100% { filter: hue-rotate(0deg); }
+}
+
+/* Water stress ripple */
+@keyframes waterRipple {
+  0%   { transform: scale(1);   opacity: 0.8; }
+  100% { transform: scale(2.5); opacity: 0;   }
+}
+
+/* Satellite orbit spin */
+@keyframes satelliteOrbit {
+  from { transform: rotate(0deg);   }
+  to   { transform: rotate(360deg); }
+}
+
+/* Field draw hint pulse */
+@keyframes hintPulse {
+  0%, 100% { transform: translateX(-50%) scale(1);    }
+  50%       { transform: translateX(-50%) scale(1.02); }
+}
+
+/* Classes */
+.field-active-glow {
+  animation: fieldGlow 2.5s ease-in-out infinite;
+}
+
+.field-draw-hint {
+  animation: hintPulse 2s ease-in-out infinite;
+}
+
+.satellite-orbit {
+  animation: satelliteOrbit 6s linear infinite;
+}
+
+.satellite-glow {
+  animation: fieldGlow 3s ease-in-out infinite;
+}
+
+.satellite-evidence-panel::before {
+  content: "";
+  position: absolute;
+  top: 0; left: -100%; width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.08), transparent);
+  animation: satelliteScan 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.satellite-evidence-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Leaflet draw overrides — make toolbar visible on dark map */
+.leaflet-draw-toolbar a {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+.leaflet-draw-toolbar a:hover {
+  background-color: #334155 !important;
+  color: #10b981 !important;
+}
+.leaflet-draw-toolbar .leaflet-draw-draw-polygon {
+  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2310b981" stroke-width="2"><polygon points="12 2 22 20 2 20"/></svg>') !important;
+  background-size: 18px 18px !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+}

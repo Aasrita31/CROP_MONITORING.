@@ -84,6 +84,7 @@ export function buildFieldFromCopernicusPolygon(
     coordinates: poly.polygonCoords,
     polygonCoords: poly.polygonCoords,
     ndvi: parseFloat(ndvi.toFixed(2)),
+    ndmi: poly.mean_ndmi !== undefined ? parseFloat(poly.mean_ndmi.toFixed(2)) : 0,
     hotspots: [] as unknown[],
     dominant,
     status,

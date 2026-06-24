@@ -284,3 +284,119 @@ def get_analysis_village(
         "bandwidthDetails": bandwidth_details
     }
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Polygon Field Analysis – analyses Sentinel-2 data ONLY inside the drawn polygon
+# ─────────────────────────────────────────────────────────────────────────────
+
+from pydantic import BaseModel as PydanticBaseModel
+
+class FieldPolygonRequest(PydanticBaseModel):
+    polygon: list  # [[lat, lon], ...]
+    land_status: str = "sown"
+    village_name: str = ""
+
+@analysis_router.post("/field-polygon")
+def analyze_field_polygon(payload: FieldPolygonRequest):
+    """
+    Accepts a user-drawn polygon (list of [lat, lon] pairs) and returns
+    Sentinel-2 derived metrics calculated ONLY for pixels inside that polygon.
+    """
+    import numpy as np
+    import cv2 as _cv2
+
+    if not payload.polygon or len(payload.polygon) < 3:
+        raise HTTPException(status_code=400, detail="Polygon must have at least 3 points.")
+
+    lats = [p[0] for p in payload.polygon]
+    lons = [p[1] for p in payload.polygon]
+    min_lat, max_lat = min(lats), max(lats)
+    min_lon, max_lon = min(lons), max(lons)
+
+    delta = 0.002
+    bbox = [min_lat - delta, max_lat + delta, min_lon - delta, max_lon + delta]
+
+    bands = SentinelService.fetch_sentinel2_bands(bbox)
+
+    from app.services.ndvi_service import NdviService
+    b4, b8, b11, b2 = bands['b4'], bands['b8'], bands['b11'], bands['b2']
+    ndvi_array = (b8 - b4) / (b8 + b4 + 1e-10)
+    ndmi_array = (b8 - b11) / (b8 + b11 + 1e-10)
+    evi_array  = 2.5 * ((b8 - b4) / (b8 + 6.0 * b4 - 7.5 * b2 + 1.0 + 1e-10))
+    savi_array = ((b8 - b4) / (b8 + b4 + 0.5)) * 1.5
+
+    h, w = ndvi_array.shape
+    lat_step = (bbox[1] - bbox[0]) / h
+    lon_step = (bbox[3] - bbox[2]) / w
+
+    pixel_poly = []
+    for pt in payload.polygon:
+        px = int((pt[1] - bbox[2]) / lon_step)
+        py = int((bbox[1] - pt[0]) / lat_step)
+        pixel_poly.append([max(0, min(w-1, px)), max(0, min(h-1, py))])
+
+    poly_mask = np.zeros((h, w), dtype=np.uint8)
+    _cv2.fillPoly(poly_mask, [np.array(pixel_poly, dtype=np.int32)], 255)
+
+    def masked_mean(arr, mask):
+        vals = arr[mask == 255]
+        vals = vals[np.isfinite(vals)]
+        return float(vals.mean()) if len(vals) > 0 else 0.0
+
+    ndvi_mean = masked_mean(np.clip(ndvi_array, -1, 1), poly_mask)
+    ndmi_mean = masked_mean(np.clip(ndmi_array, -1, 1), poly_mask)
+    evi_mean  = masked_mean(np.clip(evi_array, -1, 1.5), poly_mask)
+    savi_mean = masked_mean(np.clip(savi_array, -1.5, 1.5), poly_mask)
+
+    if evi_mean > 0.55:   growth_stage = "Grain Filling"
+    elif evi_mean > 0.4:  growth_stage = "Flowering"
+    elif evi_mean > 0.25: growth_stage = "Vegetative"
+    elif evi_mean > 0.15: growth_stage = "Tillering"
+    else:                 growth_stage = "Seedling"
+
+    biomass = max(0, evi_mean * 12.5)
+    health_score = int(min(100, max(0, (ndvi_mean + 0.2) / 1.2 * 100)))
+    yield_pred = round(1.0 + (health_score / 100.0) * 6.5, 1)
+    disease_risk = int(min(100, max(0, (1 - ndvi_mean) * 50 + max(0, -ndmi_mean) * 30)))
+    water_stress = int(min(100, max(0, max(0, -ndmi_mean) * 80)))
+
+    savi_masked = savi_array[poly_mask == 255]
+    savi_valid = savi_masked[savi_masked > -0.1] if len(savi_masked) > 0 else np.array([])
+    crop_cover_pct = float(np.sum(savi_valid > 0.35)) / len(savi_valid) * 100 if len(savi_valid) > 0 else 0.0
+    bare_soil_pct = 100.0 - crop_cover_pct
+
+    barren_recommendation = None
+    if payload.land_status == "barren":
+        if ndmi_mean > 0.1:
+            barren_recommendation = {"crop": "Paddy (Rice)", "reason": "High moisture availability detected", "expectedYield": "4.5–5.5 t/ha", "sowingWindow": "June–July"}
+        elif ndmi_mean > -0.1:
+            barren_recommendation = {"crop": "Maize / Corn", "reason": "Moderate moisture, suitable for maize", "expectedYield": "3.0–4.0 t/ha", "sowingWindow": "July–August"}
+        else:
+            barren_recommendation = {"crop": "Groundnut / Pulses", "reason": "Low moisture – drought-tolerant crops recommended", "expectedYield": "1.5–2.5 t/ha", "sowingWindow": "August–September"}
+
+    copernicus_meta = SentinelService.fetch_product_metadata(bbox)
+    band_avgs = NdviService.get_village_band_averages(b4, b8, b11)
+
+    return {
+        "ndvi": round(ndvi_mean, 3),
+        "ndmi": round(ndmi_mean, 3),
+        "evi":  round(evi_mean,  3),
+        "savi": round(savi_mean, 3),
+        "healthScore": health_score,
+        "diseaseRisk": disease_risk,
+        "waterStress": water_stress,
+        "yieldPrediction": yield_pred,
+        "growthStage": growth_stage,
+        "biomassEstimate": round(biomass, 2),
+        "cropCoverPct": round(crop_cover_pct, 1),
+        "bareSoilPct": round(bare_soil_pct, 1),
+        "captureDate": bands.get("capture_date"),
+        "source": bands.get("source"),
+        "copernicusMetadata": copernicus_meta,
+        "b4": round(band_avgs['b4'], 4),
+        "b8": round(band_avgs['b8'], 4),
+        "b11": round(band_avgs['b11'], 4),
+        "barrenRecommendation": barren_recommendation,
+        "bbox": bbox,
+        "polygon": payload.polygon,
+    }

@@ -30,6 +30,8 @@ import { NdmiExplanationPanel } from "@/components/NdmiExplanationPanel";
 import { EviExplanationPanel } from "@/components/EviExplanationPanel";
 import { SaviExplanationPanel } from "@/components/SaviExplanationPanel";
 import { FarmerAdvisorPanel } from "@/components/FarmerAdvisorPanel";
+import { FarmerVoiceAssistant } from "@/components/FarmerVoiceAssistant";
+import { FarmRegistrationPanel } from "@/components/FarmRegistrationPanel";
 
 const ApRiceBowlSection = lazy(() => import("@/components/ApRiceBowlComponents").then(m => ({ default: m.ApRiceBowlSection })));
 
@@ -299,12 +301,12 @@ function Dashboard() {
   return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
 
-          <VillageSearchPanel />
+          {activePanel !== "Farm Registration & Fields" && <VillageSearchPanel />}
 
-          {activePanel === "Dashboard" ? (
+          {activePanel === "Village Monitoring" || activePanel === "Dashboard" ? (
             <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 space-y-6">
-              <div className="h-[calc(100vh-150px)] w-full rounded-2xl overflow-hidden shadow-[var(--shadow-soft)] mb-6">
+              <div className="h-[calc(100vh-290px)] w-full rounded-2xl overflow-hidden shadow-[var(--shadow-soft)] mb-6">
                 <ClientOnly>
                   <Suspense fallback={<div className="w-full h-full bg-[#1c2128] flex items-center justify-center text-muted-foreground">Loading interactive map...</div>}>
                     <DashboardInteractiveMap 
@@ -316,34 +318,37 @@ function Dashboard() {
                 </ClientOnly>
               </div>
             </div>
-            <div className="space-y-6">
+            <div className="flex flex-col h-[calc(100vh-290px)] gap-4">
               {/* Mode Toggle */}
-              <div className="flex w-full bg-accent/40 rounded-xl p-1 border border-border shadow-sm">
+              <div className="flex w-full bg-accent/40 rounded-xl p-1 border border-border shadow-sm shrink-0">
                 <button 
                   onClick={() => setDashboardMode("farmer")} 
-                  className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${dashboardMode === "farmer" ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${dashboardMode === "farmer" ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   <Leaf className="h-4 w-4" /> Farmer View
                 </button>
                 <button 
                   onClick={() => setDashboardMode("expert")} 
-                  className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${dashboardMode === "expert" ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${dashboardMode === "expert" ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   <Activity className="h-4 w-4" /> Expert Mode
                 </button>
               </div>
-              {/* Right panel — farmer view uses FarmerAdvisorPanel, expert uses raw FieldPanel */}
-              {dashboardMode === "farmer" ? (
-                <FarmerAdvisorPanel
-                  villageName={searchQuery}
-                  villageAnalysis={villageAnalysis}
-                />
-              ) : (
-                <>
-                  <FieldPanel field={field} crop={crop} villageAnalysis={villageAnalysis} villageName={searchQuery} />
-                  <AiInsights insights={activeFarm.insights} />
-                </>
-              )}
+              <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                {/* Right panel — farmer view uses FarmerAdvisorPanel, expert uses raw FieldPanel */}
+                {dashboardMode === "farmer" ? (
+                  <FarmerAdvisorPanel
+                    villageName={searchQuery}
+                    villageAnalysis={villageAnalysis}
+                    showIndexCards={false}
+                  />
+                ) : (
+                  <>
+                    <FieldPanel field={field} crop={crop} villageAnalysis={villageAnalysis} villageName={searchQuery} />
+                    <AiInsights insights={activeFarm.insights} />
+                  </>
+                )}
+              </div>
             </div>
           </section>
           ) : activePanel === "AP Rice Bowl" ? (
@@ -367,6 +372,8 @@ function Dashboard() {
               villageName={searchQuery}
               villageAnalysis={villageAnalysis}
             />
+          ) : activePanel === "Farm Registration & Fields" ? (
+            <FarmRegistrationPanel />
           ) : (
             <AnalyticsPanel title={activePanel} villageName={searchQuery} />
           )}
@@ -377,6 +384,7 @@ function Dashboard() {
             </div>
             <div>© 2026 AgriTwin Vision Labs</div>
           </footer>
+          <FarmerVoiceAssistant />
         </div>
   );
 }
