@@ -1,0 +1,106 @@
+from fastapi import APIRouter, Depends, HTTPException, Body
+from sqlalchemy.orm import Session
+from typing import List, Dict, Any
+import datetime
+import uuid
+
+from app.database.database import get_db
+from app.models.digital_twin import FarmerField, Farmer
+from app.services.geometry_service import geometry_service
+
+router = APIRouter(prefix="/farmer-fields", tags=["Farmer Fields"])
+
+# In a real app, this would be a dependency getting the logged-in user
+# For now, we'll use a single static farmer ID or create one if it doesn't exist
+DEMO_FARMER_ID = "farmer-123"
+
+def get_demo_farmer(db: Session):
+    farmer = db.query(Farmer).filter(Farmer.id == DEMO_FARMER_ID).first()
+    if not farmer:
+        farmer = Farmer(id=DEMO_FARMER_ID, name="Demo Farmer", phone="1234567890")
+        db.add(farmer)
+        db.commit()
+    return farmer
+
+@router.get("", response_model=List[Dict[str, Any]])
+def get_fields(db: Session = Depends(get_db)):
+    farmer = get_demo_farmer(db)
+    fields = db.query(FarmerField).filter(FarmerField.farmer_id == farmer.id).all()
+    
+    result = []
+    for f in fields:
+        result.append({
+            "id": f.id,
+            "name": f.name,
+            "polygon": f.polygon,
+            "centroid": f.centroid,
+            "areaAcres": f.area_acres,
+            "areaHectares": f.area_hectares,
+            "villageName": f.village_name,
+            "districtName": f.district_name,
+            "landStatus": f.land_status,
+            "cropName": f.crop_name,
+            "variety": f.variety,
+            "sowingDate": f.sowing_date,
+            "irrigationType": f.irrigation_type,
+            "farmingType": f.farming_type,
+            "createdAt": f.created_at.isoformat() if f.created_at else None
+        })
+    return result
+
+@router.post("")
+def create_field(payload: Dict[str, Any], db: Session = Depends(get_db)):
+    farmer = get_demo_farmer(db)
+    
+    polygon = payload.get("polygon")
+    centroid = geometry_service.calculate_centroid(polygon) if polygon else None
+    
+    field = FarmerField(
+        id=payload.get("id", str(uuid.uuid4())),
+        farmer_id=farmer.id,
+        name=payload.get("name", "New Field"),
+        polygon=polygon,
+        centroid=centroid,
+        area_acres=payload.get("areaAcres", 0.0),
+        area_hectares=payload.get("areaHectares", 0.0),
+        village_name=payload.get("villageName", ""),
+        district_name=payload.get("districtName", ""),
+        land_status=payload.get("landStatus", "sown"),
+        crop_name=payload.get("cropName"),
+        variety=payload.get("variety"),
+        sowing_date=payload.get("sowingDate"),
+        irrigation_type=payload.get("irrigationType"),
+        farming_type=payload.get("farmingType")
+    )
+    
+    db.add(field)
+    db.commit()
+    db.refresh(field)
+    
+    return {"message": "Field created successfully", "id": field.id}
+
+@router.post("/detect-field")
+def detect_field(payload: Dict[str, float] = Body(...), db: Session = Depends(get_db)):
+    lat = payload.get("lat")
+    lon = payload.get("lon")
+    if lat is None or lon is None:
+        raise HTTPException(status_code=400, detail="Missing lat or lon")
+        
+    farmer = get_demo_farmer(db)
+    fields = db.query(FarmerField).filter(FarmerField.farmer_id == farmer.id).all()
+    
+    for f in fields:
+        if f.polygon and geometry_service.point_in_polygon([lat, lon], f.polygon):
+            return {"detected": True, "fieldId": f.id, "fieldName": f.name}
+            
+    return {"detected": False, "message": "Location is not inside any registered field"}
+
+@router.delete("/{field_id}")
+def delete_field(field_id: str, db: Session = Depends(get_db)):
+    field = db.query(FarmerField).filter(FarmerField.id == field_id).first()
+    if not field:
+        raise HTTPException(status_code=404, detail="Field not found")
+        
+    db.delete(field)
+    db.commit()
+    return {"message": "Field deleted successfully"}

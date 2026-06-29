@@ -6,7 +6,7 @@ import random
 from app.database.database import engine, Base, SessionLocal
 from app.database.seeder import seed_data
 import app.models
-from app.routers import district, village, field, satellite, ndvi, health, dashboard, ml, tts
+from app.routers import district, village, field, satellite, ndvi, health, dashboard, ml, tts, farmer_fields, farm_analytics
 
 app = FastAPI(
     title="Andhra Pradesh Paddy Crop Monitoring Platform API",
@@ -35,6 +35,10 @@ def on_startup():
         seed_data(db)
     finally:
         db.close()
+        
+    # Start background scheduler
+    from app.services.satellite_scheduler import start_scheduler
+    start_scheduler()
 
 # Include Routers with /api prefix
 app.include_router(district.router, prefix="/api")
@@ -48,6 +52,8 @@ app.include_router(health.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(ml.router, prefix="/api")
 app.include_router(tts.router, prefix="/api")
+app.include_router(farmer_fields.router, prefix="/api")
+app.include_router(farm_analytics.router, prefix="/api")
 
 # ------------------------------------------------------------------
 # Weather & AI Assistant Backwards Compatibility Endpoints
