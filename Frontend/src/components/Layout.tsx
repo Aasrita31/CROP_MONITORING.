@@ -37,19 +37,16 @@ const SIDEBAR_GROUPS = [
       { label: "Soil Visibility (SAVI)",    icon: Hexagon    },
     ]
   },
-];
-
-
-function Select({ label, icon: Icon, value, onChange, options }: { label: string; icon: any; value: string; onChange: (s: string) => void; options: string[] }) {
+];function Select({ label, icon: Icon, value, onChange, options }: { label: string; icon: any; value: string; onChange: (s: string) => void; options: string[] }) {
   return (
-    <label className="hidden md:flex items-center gap-2 h-9 pl-2.5 pr-2 rounded-lg border border-border bg-card hover:border-primary/40 transition group">
-      <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
-      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</span>
+    <label className="hidden md:flex items-center gap-2 h-9 pl-2.5 pr-2 rounded-lg border border-[#1e3e30] bg-[#0A1F17]/60 text-emerald-100 hover:border-emerald-500/40 hover:text-white transition duration-300 group cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+      <Icon className="h-4 w-4 text-emerald-400/80 group-hover:text-emerald-300 group-hover:scale-110 transition-all duration-300" />
+      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/80">{label}</span>
       <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="bg-transparent text-sm font-medium outline-none pr-1 cursor-pointer max-w-[190px]">
-        {options.map((o) => <option key={o} className="bg-card text-foreground">{o}</option>)}
+        className="appearance-none bg-transparent text-xs font-semibold outline-none pr-1 cursor-pointer max-w-[190px] text-emerald-100">
+        {options.map((o) => <option key={o} className="bg-[#0F2E24] text-emerald-100">{o}</option>)}
       </select>
-      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+      <ChevronDown className="h-3.5 w-3.5 text-emerald-400/60 group-hover:text-emerald-300 transition-transform duration-300" />
     </label>
   );
 }
@@ -57,70 +54,156 @@ function Select({ label, icon: Icon, value, onChange, options }: { label: string
 function DateFilter() {
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   return (
-    <button className="hidden lg:flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-card text-sm hover:border-primary/40">
-      <CalIcon className="h-4 w-4 text-muted-foreground" />
-      <span className="font-medium">{today}</span>
-      <span className="text-muted-foreground">· Real-Time Feed</span>
-      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+    <button className="hidden lg:flex items-center gap-2 h-9 px-3 rounded-lg border border-[#1e3e30] bg-[#0A1F17]/60 text-xs font-semibold text-emerald-100 hover:border-emerald-500/40 hover:text-white transition duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.2)] group">
+      <CalIcon className="h-4 w-4 text-emerald-400/80 group-hover:text-emerald-300 group-hover:scale-110 transition-all duration-300" />
+      <span>{today}</span>
+      <span className="text-emerald-500/80">· Real-Time Feed</span>
+      <ChevronDown className="h-3.5 w-3.5 text-emerald-400/60 group-hover:text-emerald-300 transition-transform duration-300" />
     </button>
   );
 }
 
 export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const { crop, setCrop, setAiOpen } = useApp();
+  const { registeredFields, activeField, setActiveField } = useDashboardContext();
+
+  const handleFieldChange = (fieldId: string) => {
+    const field = registeredFields.find(f => f.id === fieldId);
+    if (field) setActiveField(field);
+  };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-[9999] border-b border-border bg-card/95 backdrop-blur-xl shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
+    <header className="fixed top-0 left-0 right-0 z-[9999] bg-gradient-to-r from-[#0A1F17] to-[#0F2E24] backdrop-blur-xl border-b border-[#16a34a]/20 shadow-[0_4px_30px_rgba(10,31,23,0.4)] animate-border-glow">
       <style dangerouslySetInnerHTML={{__html: `
-        @keyframes sway {
-          0%, 100% { transform: rotate(-8deg); }
-          50% { transform: rotate(8deg); }
+        @keyframes border-glow {
+          0%, 100% { border-bottom-color: rgba(22, 163, 74, 0.2); box-shadow: 0 4px 30px rgba(10, 31, 23, 0.4); }
+          50% { border-bottom-color: rgba(20, 184, 166, 0.4); box-shadow: 0 4px 35px rgba(22, 163, 74, 0.15); }
         }
-        .animate-sway {
+        .animate-border-glow {
+          animation: border-glow 8s ease-in-out infinite;
+        }
+
+        @keyframes title-gradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-title-gradient {
+          background-size: 300% 300%;
+          animation: title-gradient 10s ease infinite;
+        }
+
+        @keyframes text-glow {
+          0%, 100% { filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.3)); }
+          50% { filter: drop-shadow(0 0 12px rgba(20, 184, 166, 0.6)); }
+        }
+        .animate-text-glow {
+          animation: text-glow 5s ease-in-out infinite;
+        }
+
+        @keyframes leaf-float {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-4px) rotate(10deg); }
+        }
+        .animate-leaf-float {
           display: inline-block;
           transform-origin: bottom center;
-          animation: sway 3s ease-in-out infinite;
+          animation: leaf-float 4s ease-in-out infinite;
+        }
+
+        @keyframes fade-in-tagline {
+          from { opacity: 0; transform: translateY(3px); }
+          to { opacity: 0.9; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fade-in-tagline 1.2s ease-out forwards;
+        }
+
+        @keyframes pulse-glow {
+          0%, 100% { box-shadow: 0 0 8px rgba(16, 185, 129, 0.4); }
+          50% { box-shadow: 0 0 20px rgba(20, 184, 166, 0.7); }
+        }
+        .animate-pulse-glow {
+          animation: pulse-glow 2.5s infinite;
         }
       `}} />
-      <div className="flex items-center justify-between px-4 md:px-8 py-1.5 md:py-2 w-full relative">
+      <div className="flex items-center justify-between px-4 md:px-8 py-1.5 md:py-2.5 w-full relative">
         
-        {/* LEFT: Office Logo */}
+        {/* LEFT: Menu Toggle & Org Logo */}
         <div className="flex items-center gap-4 md:gap-6 z-10 w-1/3">
-          <button onClick={onToggleSidebar} className="p-2 rounded-md hover:bg-accent transition shrink-0" aria-label="menu"><Menu className="h-6 w-6" /></button>
-          <Link to="/" className="flex items-center shrink-0">
-            <img src={navavishkarLogo} alt="Navavishkar Logo" className="h-[45px] sm:h-[60px] lg:h-[75px] scale-125 lg:scale-[1.35] origin-left w-auto object-contain hover:scale-150 transition-all duration-500 animate-in fade-in zoom-in-95 duration-1000" />
+          <button 
+            onClick={onToggleSidebar} 
+            className="p-2 rounded-md text-emerald-100/80 hover:text-white hover:bg-emerald-800/20 active:scale-95 transition-all duration-300 shrink-0" 
+            aria-label="menu"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          <Link to="/" className="flex items-center shrink-0 group">
+            <img 
+              src={navavishkarLogo} 
+              alt="Navavishkar Logo" 
+              className="h-[45px] sm:h-[60px] lg:h-[70px] scale-125 lg:scale-[1.3] origin-left w-auto object-contain transition-all duration-500 group-hover:scale-[1.35] group-hover:brightness-110" 
+            />
           </Link>
-          <div className="hidden lg:block h-8 w-px bg-border/60 shrink-0 ml-8" />
+          <div className="hidden lg:block h-8 w-px bg-emerald-800/30 shrink-0 ml-8" />
         </div>
-
-        {/* CENTER: Premium Branding */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center justify-center pointer-events-none group">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl animate-sway">🌾</span>
-            <h1 className="text-xl md:text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 via-primary to-emerald-800 transition-all duration-300 group-hover:scale-[1.02] group-hover:drop-shadow-sm" style={{ fontFamily: "'Poppins', 'Montserrat', 'Outfit', sans-serif" }}>
-              RiceBowl Intelligence
-            </h1>
-            <span className="relative flex h-2.5 w-2.5 ml-1" title="Live Satellite Intelligence">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
+ 
+        {/* CENTER: Redesigned Premium Branding */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none group z-20">
+          <div className="flex items-center gap-3">
+            {/* Animated Rice Grain/Leaf Icon */}
+            <div className="relative hidden md:flex items-center justify-center h-10 w-10 shrink-0 select-none animate-leaf-float">
+              {/* Magic sparks around the icon */}
+              <span className="absolute text-[8px] text-yellow-300 animate-ping" style={{ top: '5%', left: '15%' }}>✦</span>
+              <span className="absolute text-[6px] text-emerald-400 animate-pulse" style={{ bottom: '15%', right: '10%' }}>✦</span>
+              <span className="absolute text-[8px] text-teal-300 animate-pulse" style={{ top: '45%', right: '5%', animationDelay: '1s' }}>✦</span>
+              <span className="text-3xl filter drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]">🌾</span>
+            </div>
+            
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg sm:text-xl md:text-[25px] font-extrabold tracking-tight leading-none animate-text-glow" style={{ fontFamily: "'Poppins', 'Outfit', 'Inter', sans-serif" }}>
+                  <span className="bg-gradient-to-r from-green-400 via-lime-400 via-yellow-300 to-teal-400 bg-clip-text text-transparent animate-title-gradient">
+                    AgriTwin Intelligence
+                  </span>
+                </h1>
+                <span className="relative flex h-2.5 w-2.5 ml-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_10px_#10b981]"></span>
+                </span>
+              </div>
+              <p className="text-[10px] md:text-[11.5px] font-medium tracking-[0.05em] text-emerald-300/80 mt-1 leading-none animate-fade-in">
+                Smart Insights. Strong Harvests.
+              </p>
+            </div>
           </div>
-          <p className="text-[10px] md:text-[11px] font-semibold tracking-[0.2em] text-emerald-600/80 uppercase mt-0.5">
-            Protect Every Grain
-          </p>
         </div>
-
-        {/* RIGHT: Controls */}
-        <div className="flex items-center gap-2">
-          <Select label="Crop Profile" icon={Sprout} value={crop} onChange={(c) => setCrop(c)} options={["Paddy"]} />
+ 
+        <div className="flex items-center gap-3.5 z-10">
+          <label className="hidden md:flex items-center gap-2 h-9 pl-2.5 pr-2 rounded-lg border border-[#1e3e30] bg-[#0A1F17]/60 text-emerald-100 hover:border-emerald-500/40 hover:text-white transition duration-300 group cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+            <MapPin className="h-4 w-4 text-emerald-400/80 group-hover:text-emerald-300 group-hover:scale-110 transition-all duration-300" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/80">My Farm</span>
+            <select 
+              value={activeField?.id || ""} 
+              onChange={(e) => handleFieldChange(e.target.value)}
+              className="appearance-none bg-transparent text-xs font-semibold outline-none pr-1 cursor-pointer max-w-[190px] text-emerald-100"
+            >
+              {registeredFields.length === 0 && <option value="" className="bg-[#0F2E24] text-emerald-100">No fields</option>}
+              {registeredFields.map((f) => (
+                <option key={f.id} value={f.id} className="bg-[#0F2E24] text-emerald-100">{f.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="h-3.5 w-3.5 text-emerald-400/60 group-hover:text-emerald-300 transition-transform duration-300" />
+          </label>
           <DateFilter />
-          <button onClick={() => setAiOpen(true)}
-            className="hidden md:inline-flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium text-primary-foreground shadow-[var(--shadow-soft)] hover:opacity-95 transition"
-            style={{ background: "var(--gradient-primary)" }}>
-            <Sparkles className="h-4 w-4" /> AI Assistant
+          <button 
+            onClick={() => setAiOpen(true)}
+            className="hidden md:inline-flex items-center gap-2 h-9 px-4 rounded-lg text-xs font-bold text-white tracking-wider uppercase bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-md transition-all duration-300 transform hover:scale-[1.03] animate-pulse-glow hover:shadow-[0_0_20px_rgba(20,184,166,0.6)] group"
+          >
+            <Sparkles className="h-4 w-4 text-emerald-100 group-hover:scale-125 group-hover:rotate-12 transition-all duration-300" />
+            AI Assistant
           </button>
         </div>
-
       </div>
     </header>
   );

@@ -10,7 +10,7 @@ import { FieldAnalysisPanel } from "./FieldAnalysisPanel";
 // Lazy-load Leaflet to avoid SSR issues
 declare global { interface Window { L: any } }
 
-const CROP_OPTIONS = ["Paddy (Rice)", "Maize / Corn", "Groundnut", "Cotton", "Sugarcane", "Wheat", "Pulses", "Vegetables", "Other"];
+const CROP_OPTIONS = ["Paddy (Rice)"];
 const IRRIGATION_OPTIONS = ["Drip Irrigation", "Sprinkler", "Canal / Flood", "Borewell", "Rainwater / Rainfed"];
 const FARMING_OPTIONS = ["Organic Farming", "Conventional Farming", "Mixed / Semi-organic", "Natural Farming"];
 
@@ -241,9 +241,9 @@ export function FarmRegistrationPanel() {
     setDetectedDistrict(district);
   };
 
-  const handleAddField = () => {
+  const handleAddField = async () => {
     if (!formFarmName.trim() || drawnPolygon.length < 3) return;
-    const newField: RegisteredField = {
+    const newField = {
       id: `field-${Date.now()}`,
       name: formFarmName.trim(),
       polygon: drawnPolygon,
@@ -252,15 +252,62 @@ export function FarmRegistrationPanel() {
       villageName: detectedVillage || "Unknown",
       districtName: detectedDistrict || "Unknown",
       landStatus: formStatus,
-      createdAt: new Date().toISOString(),
+      cropName: formCrop,
+      variety: formVariety,
+      sowingDate: formSowingDate,
+      irrigationType: formIrrigation,
+      farmingType: formFarming
     };
-    const updated = [...registeredFields, newField];
-    setRegisteredFields(updated);
-    setActiveField(newField);
-    resetForm();
-    setView("detail");
-    // Auto-trigger analysis
-    fetchAnalysis(newField, formStatus);
+    
+    try {
+      await fetch("http://127.0.0.1:8080/api/farmer-fields", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newField)
+      });
+      const updated = [...registeredFields, { ...newField, createdAt: new Date().toISOString() } as RegisteredField];
+      setRegisteredFields(updated);
+      setActiveField(updated[updated.length - 1]);
+      resetForm();
+      setView("detail");
+      fetchAnalysis(updated[updated.length - 1], formStatus);
+    } catch (e) {
+      console.error("Failed to add field:", e);
+    }
+  };
+
+  const [detecting, setDetecting] = useState(false);
+  const handleDetectField = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    setDetecting(true);
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const res = await fetch("http://127.0.0.1:8080/api/farmer-fields/detect-field", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lat: pos.coords.latitude, lon: pos.coords.longitude })
+        });
+        const data = await res.json();
+        if (data.detected) {
+          const field = registeredFields.find(f => f.id === data.fieldId);
+          if (field) {
+            handleSelectField(field);
+          }
+        } else {
+          alert("You are currently not inside any registered field.");
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setDetecting(false);
+      }
+    }, () => {
+      alert("Unable to retrieve your location");
+      setDetecting(false);
+    });
   };
 
   const fetchAnalysis = async (field: RegisteredField, landStatus?: "sown" | "barren") => {
@@ -295,12 +342,17 @@ export function FarmRegistrationPanel() {
     }
   };
 
-  const handleDeleteField = (id: string) => {
-    const updated = registeredFields.filter(f => f.id !== id);
-    setRegisteredFields(updated);
-    if (activeField?.id === id) { setActiveField(null); setFieldPolygonAnalysis(null); }
-    const nc = { ...analysisCache }; delete nc[id]; setAnalysisCache(nc);
-    if (view === "detail") setView("list");
+  const handleDeleteField = async (id: string) => {
+    try {
+      await fetch(`http://127.0.0.1:8080/api/farmer-fields/${id}`, { method: "DELETE" });
+      const updated = registeredFields.filter(f => f.id !== id);
+      setRegisteredFields(updated);
+      if (activeField?.id === id) { setActiveField(null); setFieldPolygonAnalysis(null); }
+      const nc = { ...analysisCache }; delete nc[id]; setAnalysisCache(nc);
+      if (view === "detail") setView("list");
+    } catch (e) {
+      console.error("Failed to delete field:", e);
+    }
   };
 
   // ── LEFT PANEL CONTENT ────────────────────────────────────────────────────
@@ -310,13 +362,22 @@ export function FarmRegistrationPanel() {
       return (
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <span className="font-bold text-base text-gray-800">All Fields</span>
-            <button
-              onClick={() => { resetForm(); setView("add-form"); }}
-              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add Field
-            </button>
+            <span className="font-bold text-base text-gray-800">My Fields</span>
+            <div className="flex gap-2">
+              <button
+                onClick={handleDetectField}
+                disabled={detecting}
+                className="flex items-center gap-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-50 text-xs font-bold px-3 py-1.5 rounded-lg transition"
+              >
+                {detecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />} Detect
+              </button>
+              <button
+                onClick={() => { resetForm(); setView("add-form"); }}
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add Field
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-2">

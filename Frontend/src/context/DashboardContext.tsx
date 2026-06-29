@@ -49,19 +49,24 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [villageAnalysis, setVillageAnalysis] = useState<any>(null);
   const [searchFields, setSearchFields] = useState<any[]>([]);
   const [activePanel, setActivePanel] = useState<string>("Farm Registration & Fields");
-  // Farm Registration state — persisted in localStorage
-  const [registeredFields, _setRegisteredFields] = useState<RegisteredField[]>(() => {
-    try {
-      const saved = localStorage.getItem("agritwin_registered_fields");
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+  // Farm Registration state — fetched from API
+  const [registeredFields, _setRegisteredFields] = useState<RegisteredField[]>([]);
   const [activeField, setActiveField] = useState<RegisteredField | null>(null);
   const [fieldPolygonAnalysis, setFieldPolygonAnalysis] = useState<any>(null);
 
+  // Fetch fields on mount
+  useEffect(() => {
+    fetch("http://127.0.0.1:8080/api/farmer-fields")
+      .then(res => res.json())
+      .then(data => {
+        _setRegisteredFields(data);
+        if (data.length > 0) setActiveField(data[0]);
+      })
+      .catch(console.error);
+  }, []);
+
   const setRegisteredFields = (fields: RegisteredField[]) => {
     _setRegisteredFields(fields);
-    try { localStorage.setItem("agritwin_registered_fields", JSON.stringify(fields)); } catch {}
   };
 
   return (

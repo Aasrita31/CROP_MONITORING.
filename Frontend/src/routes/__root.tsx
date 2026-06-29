@@ -83,10 +83,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "AgriTwin Vision — AI Precision Agriculture Digital Twin" },
+      { title: "🌿 FarmPulse — AI Precision Agriculture Digital Twin" },
       { name: "description", content: "AI-powered digital twin for precision agriculture: live crop health, disease & pest monitoring, yield prediction and AI recommendations." },
-      { name: "author", content: "AgriTwin Vision" },
-      { property: "og:title", content: "AgriTwin Vision — AI Precision Agriculture" },
+      { name: "author", content: "FarmPulse" },
+      { property: "og:title", content: "🌿 FarmPulse — AI Precision Agriculture" },
       { property: "og:description", content: "Live digital twin of your farm with AI insights, heatmaps and yield forecasts." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

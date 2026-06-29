@@ -48,9 +48,9 @@ const DashboardInteractiveMap = lazy(() => import("@/components/MapComponents").
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "AgriTwin Vision — Precision Agriculture Digital Twin" },
+      { title: "🌿 FarmPulse — AI Precision Agriculture Digital Twin" },
       { name: "description", content: "Live AI digital twin for crop health, disease detection, water stress and yield prediction across your farms." },
-      { property: "og:title", content: "AgriTwin Vision Dashboard" },
+      { property: "og:title", content: "🌿 FarmPulse Dashboard" },
       { property: "og:description", content: "AI-powered precision agriculture command center." },
     ],
   }),
