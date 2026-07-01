@@ -9,6 +9,10 @@ class Farmer(Base):
     id = Column(String, primary_key=True, index=True)
     name = Column(String, default="Demo Farmer")
     phone = Column(String, unique=True, index=True, nullable=True)
+    aadhaar = Column(String, unique=True, index=True, nullable=True)
+    address = Column(String, nullable=True)
+    district = Column(String, nullable=True)
+    gender = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     fields = relationship("FarmerField", back_populates="farmer", cascade="all, delete-orphan")

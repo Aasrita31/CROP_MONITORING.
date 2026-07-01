@@ -11,6 +11,16 @@ import { FieldAnalysisPanel } from "./FieldAnalysisPanel";
 declare global { interface Window { L: any } }
 
 const CROP_OPTIONS = ["Paddy (Rice)"];
+const VARIETY_OPTIONS = [
+  "BPT-5204 (Samba Mahsuri)",
+  "MTU-1010",
+  "MTU-7029 (Swarna)",
+  "IR-64",
+  "JGL-1798",
+  "Pusa Basmati-1121",
+  "ADT-43",
+  "ADT-45"
+];
 const IRRIGATION_OPTIONS = ["Drip Irrigation", "Sprinkler", "Canal / Flood", "Borewell", "Rainwater / Rainfed"];
 const FARMING_OPTIONS = ["Organic Farming", "Conventional Farming", "Mixed / Semi-organic", "Natural Farming"];
 
@@ -31,11 +41,13 @@ function m2ToAcres(m2: number) { return m2 / 4046.856; }
 
 // ── Inline satellite map with drawing ──────────────────────────────────────
 function InlineFieldMap({
-  center, onPolygonDrawn, existingFields
+  center, onPolygonDrawn, existingFields, isDrawing, drawnPolygon
 }: {
   center: [number, number];
   onPolygonDrawn: (polygon: [number, number][], acres: number, village: string, district: string) => void;
   existingFields: RegisteredField[];
+  isDrawing: boolean;
+  drawnPolygon: [number, number][];
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<any>(null);
@@ -81,7 +93,7 @@ function InlineFieldMap({
       // Esri high-res satellite
       L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        { maxZoom: 19, attribution: "Esri Satellite" }
+        { maxNativeZoom: 17, maxZoom: 24, attribution: "Esri Satellite" }
       ).addTo(map);
 
       // Label overlay
@@ -105,29 +117,82 @@ function InlineFieldMap({
         }
       });
 
-      const drawControl = new (L as any).Control.Draw({
-        draw: {
-          polygon: {
-            allowIntersection: false,
-            showArea: true,
-            shapeOptions: { color: "#22c55e", weight: 3, fillColor: "#22c55e", fillOpacity: 0.2 },
-          },
-          rectangle: { shapeOptions: { color: "#22c55e", weight: 3, fillColor: "#22c55e", fillOpacity: 0.2 } },
-          polyline: false, circle: false, marker: false, circlemarker: false,
-        },
-        edit: { featureGroup: drawnItems, remove: true },
+      leafletMapRef.current = map;
+    };
+
+    load();
+    return () => {
+      if (leafletMapRef.current) { leafletMapRef.current.remove(); leafletMapRef.current = null; }
+    };
+  }, []);
+
+  const [points, setPoints] = useState<[number, number][]>([]);
+
+  // Reset drawing points when parent polygon is cleared
+  useEffect(() => {
+    if (drawnPolygon.length === 0) {
+      setPoints([]);
+    }
+  }, [drawnPolygon]);
+
+  // Click handler to collect up to 4 points
+  useEffect(() => {
+    const map = leafletMapRef.current;
+    if (!map || !isDrawing) return;
+
+    const onClick = (e: any) => {
+      if (points.length >= 4) return;
+      const newPoints = [...points, [e.latlng.lat, e.latlng.lng] as [number, number]];
+      setPoints(newPoints);
+    };
+
+    map.on("click", onClick);
+    return () => {
+      map.off("click", onClick);
+    };
+  }, [points, isDrawing]);
+
+  // Render temporary drawing layers
+  useEffect(() => {
+    const map = leafletMapRef.current;
+    if (!map) return;
+
+    const L = window.L;
+    if (!L) return;
+
+    const tempGroup = L.featureGroup().addTo(map);
+
+    // Draw markers for corners (only during active drawing phase)
+    if (points.length < 4) {
+      points.forEach((pt, index) => {
+        L.marker(pt, {
+          icon: L.divIcon({
+            html: `<div class="h-6 w-6 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-lg">${index + 1}</div>`,
+            className: 'bg-transparent',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          })
+        }).addTo(tempGroup);
       });
-      map.addControl(drawControl);
+    }
 
-      map.on((L as any).Draw.Event.CREATED, async (e: any) => {
-        drawnItems.clearLayers();
-        drawnItems.addLayer(e.layer);
-        const latlngs: [number, number][] = e.layer.getLatLngs()[0].map((ll: any) => [ll.lat, ll.lng]);
-        const acres = m2ToAcres(polygonAreaM2(latlngs));
-        const avgLat = latlngs.reduce((s, p) => s + p[0], 0) / latlngs.length;
-        const avgLon = latlngs.reduce((s, p) => s + p[1], 0) / latlngs.length;
+    // Draw connecting lines or shape
+    if (points.length >= 2) {
+      L.polygon(points, {
+        color: "#22c55e",
+        weight: 3,
+        fillColor: points.length >= 3 ? "#22c55e" : "transparent",
+        fillOpacity: points.length >= 3 ? 0.2 : 0
+      }).addTo(tempGroup);
+    }
 
-        // Reverse geocode
+    // Auto-calculate on 4th point
+    if (points.length === 4 && drawnPolygon.length === 0) {
+      const finishDrawing = async () => {
+        const acres = m2ToAcres(polygonAreaM2(points));
+        const avgLat = points.reduce((s, p) => s + p[0], 0) / 4;
+        const avgLon = points.reduce((s, p) => s + p[1], 0) / 4;
+
         let village = "Unknown Village", district = "Unknown District";
         try {
           const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${avgLat}&lon=${avgLon}&format=json`, { headers: { "User-Agent": "AgriTwin/1.0" } });
@@ -137,21 +202,15 @@ function InlineFieldMap({
           district = addr.county || addr.state_district || addr.district || district;
         } catch {}
 
-        onPolygonDrawn(latlngs, parseFloat(acres.toFixed(3)), village, district);
-      });
+        onPolygonDrawn(points, parseFloat(acres.toFixed(3)), village, district);
+      };
+      finishDrawing();
+    }
 
-      map.on((L as any).Draw.Event.DELETED, () => {
-        onPolygonDrawn([], 0, "", "");
-      });
-
-      leafletMapRef.current = map;
-    };
-
-    load();
     return () => {
-      if (leafletMapRef.current) { leafletMapRef.current.remove(); leafletMapRef.current = null; }
+      map.removeLayer(tempGroup);
     };
-  }, []);
+  }, [points, drawnPolygon]);
 
   return (
     <div className="relative w-full h-full">
@@ -260,7 +319,7 @@ export function FarmRegistrationPanel() {
     };
     
     try {
-      await fetch("http://127.0.0.1:8080/api/farmer-fields", {
+      await fetch("http://127.0.0.1:8000/api/farmer-fields", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newField)
@@ -285,7 +344,7 @@ export function FarmRegistrationPanel() {
     setDetecting(true);
     navigator.geolocation.getCurrentPosition(async (pos) => {
       try {
-        const res = await fetch("http://127.0.0.1:8080/api/farmer-fields/detect-field", {
+        const res = await fetch("http://127.0.0.1:8000/api/farmer-fields/detect-field", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ lat: pos.coords.latitude, lon: pos.coords.longitude })
@@ -344,7 +403,7 @@ export function FarmRegistrationPanel() {
 
   const handleDeleteField = async (id: string) => {
     try {
-      await fetch(`http://127.0.0.1:8080/api/farmer-fields/${id}`, { method: "DELETE" });
+      await fetch(`http://127.0.0.1:8000/api/farmer-fields/${id}`, { method: "DELETE" });
       const updated = registeredFields.filter(f => f.id !== id);
       setRegisteredFields(updated);
       if (activeField?.id === id) { setActiveField(null); setFieldPolygonAnalysis(null); }
@@ -491,16 +550,7 @@ export function FarmRegistrationPanel() {
             <SelectField label="Crop Name" value={formCrop} onChange={setFormCrop} options={CROP_OPTIONS} placeholder="Search or select crop" />
 
             {/* Variety */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Variety</label>
-              <input
-                type="text"
-                value={formVariety}
-                onChange={e => setFormVariety(e.target.value)}
-                placeholder="Enter crop variety"
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-emerald-500 focus:bg-white transition"
-              />
-            </div>
+            <SelectField label="Variety" value={formVariety} onChange={setFormVariety} options={VARIETY_OPTIONS} placeholder="Select variety" />
 
             {/* Sowing Date */}
             {formStatus === "sown" && (
@@ -526,12 +576,21 @@ export function FarmRegistrationPanel() {
 
             {/* Polygon info */}
             {drawnPolygon.length >= 3 && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 space-y-1">
-                <div className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Field Boundary Drawn
+              <div className="space-y-3">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 space-y-1">
+                  <div className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Field Boundary Drawn
+                  </div>
+                  <div className="text-sm font-black text-emerald-600">{drawnAcres.toFixed(2)} Acres</div>
+                  <div className="text-[10px] text-emerald-600">{detectedVillage} · {detectedDistrict}</div>
                 </div>
-                <div className="text-sm font-black text-emerald-600">{drawnAcres.toFixed(2)} Acres</div>
-                <div className="text-[10px] text-emerald-600">{detectedVillage} · {detectedDistrict}</div>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Clear & Re-draw
+                </button>
               </div>
             )}
 
@@ -540,7 +599,7 @@ export function FarmRegistrationPanel() {
                 <div className="text-xs font-bold text-amber-700 flex items-center gap-1.5">
                   <AlertTriangle className="h-3.5 w-3.5" /> Draw Your Field on the Map
                 </div>
-                <div className="text-[10px] text-amber-600 mt-0.5">Use the polygon tool on the right to mark your field boundary</div>
+                <div className="text-[10px] text-amber-600 mt-0.5">Click 4 corners on the map to mark your field boundary</div>
               </div>
             )}
           </div>
@@ -580,9 +639,7 @@ export function FarmRegistrationPanel() {
 
           <div className="flex-1 overflow-y-auto px-4 py-3">
             <FieldAnalysisPanel
-              analysis={fieldPolygonAnalysis}
               field={activeField}
-              loading={loadingFieldId === activeField.id}
             />
           </div>
         </div>
@@ -610,6 +667,8 @@ export function FarmRegistrationPanel() {
             center={center}
             onPolygonDrawn={handlePolygonDrawn}
             existingFields={registeredFields}
+            isDrawing={view === "add-form"}
+            drawnPolygon={drawnPolygon}
           />
         </Suspense>
 
@@ -621,8 +680,8 @@ export function FarmRegistrationPanel() {
           <div className="text-xs font-bold text-gray-600 flex items-center gap-2">
             <Satellite className="h-3.5 w-3.5 text-emerald-600" />
             {drawnPolygon.length >= 3
-              ? `Polygon drawn · ${drawnAcres.toFixed(2)} Acres · ${detectedVillage || "..."}`
-              : "Use the polygon tool to draw your field boundary"}
+              ? `Boundary drawn · ${drawnAcres.toFixed(2)} Acres · ${detectedVillage || "..."}`
+              : "Click 4 corners on the map to define your boundary"}
           </div>
           <button
             onClick={() => { resetForm(); setView("add-form"); }}

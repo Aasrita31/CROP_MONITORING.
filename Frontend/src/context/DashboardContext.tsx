@@ -56,7 +56,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch fields on mount
   useEffect(() => {
-    fetch("http://127.0.0.1:8080/api/farmer-fields")
+    fetch("http://127.0.0.1:8000/api/farmer-fields")
       .then(res => res.json())
       .then(data => {
         _setRegisteredFields(data);

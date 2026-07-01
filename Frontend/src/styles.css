@@ -296,7 +296,13 @@
   color: #10b981 !important;
 }
 .leaflet-draw-toolbar .leaflet-draw-draw-polygon {
-  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2310b981" stroke-width="2"><polygon points="12 2 22 20 2 20"/></svg>') !important;
+  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2310b981" stroke-width="2"><polygon points="4 8 20 4 18 20 2 16"/></svg>') !important;
+  background-size: 18px 18px !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+}
+.leaflet-draw-toolbar .leaflet-draw-draw-rectangle {
+  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2310b981" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>') !important;
   background-size: 18px 18px !important;
   background-repeat: no-repeat !important;
   background-position: center !important;

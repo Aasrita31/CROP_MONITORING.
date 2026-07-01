@@ -52,8 +52,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [highlightedFields, setHighlightedFields] = useState<string[]>([]);
   const [dashboardMode, setDashboardMode] = useState<"farmer" | "expert">("farmer");
 
-  const [activeFarmData, setActiveFarmData] = useState<any>(null);
-  const [weatherData, setWeatherData] = useState<any>(null);
+  const [activeFarmData, setActiveFarmData] = useState<any>({
+    name: "East Godavari — Search a village",
+    coordinates: "16.9891°N · 82.2475°E",
+    center: [16.9891, 82.2475],
+    crop: "Paddy",
+    backdrop: satelliteImg,
+    cropUnit: "t/ha",
+    cropText: "Paddy Quality Index",
+    cropSubtitle: "Search a village to load Copernicus Sentinel-2 data",
+    kpis: [
+      {
+        label: "District NDVI",
+        value: 0.65,
+        suffix: " index",
+        tone: "healthy",
+        icon: ICON_MAP["Sparkles"],
+        trend: "+1.8%",
+        spark: [0.55, 0.58, 0.6, 0.62, 0.65],
+      },
+      {
+        label: "District Yield Forecast",
+        value: 5.2,
+        suffix: " t/ha",
+        tone: "healthy",
+        icon: ICON_MAP["TrendingUp"],
+        trend: "+0.4 t",
+        decimals: 1,
+        spark: [4.5, 4.8, 5.0, 5.2, 5.2],
+      },
+    ],
+    fields: [],
+    insights: [],
+    charts: {
+      healthTrend: [],
+    },
+    qualityFruit: [],
+  });
+  const [weatherData, setWeatherData] = useState<any>({
+    temperature: 32,
+    humidity: 74,
+    windSpeed: 12,
+    condition: "Partly Cloudy",
+    forecast: []
+  });
   const [nationalNdvi, setNationalNdvi] = useState<any>(null);
   const [selectedVillage, setSelectedVillage] = useState<string | null>(null);
 
@@ -231,7 +273,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           .catch((err) => console.error("Error linking context data:", err));
 
         // Fetch Weather data
-        fetch(`http://127.0.0.1:8080/api/weather/${districtId}`)
+        fetch(`http://127.0.0.1:8000/api/weather/${districtId}`)
           .then(r => r.json())
           .then(data => {
             if (data.forecast) {

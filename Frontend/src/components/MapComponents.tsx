@@ -172,6 +172,8 @@ export function BackgroundMap({ center }: { center: [number, number] }) {
       <TileLayer
         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
         attribution="Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+        maxNativeZoom={17}
+        maxZoom={24}
       />
     </MapContainer>
   );
@@ -263,7 +265,7 @@ export function DashboardInteractiveMap({
 
     try {
       const analysisRes = await fetch(
-        `http://127.0.0.1:8080/api/analysis/village?name=${encodeURIComponent(name)}&latitude=${lat}&longitude=${lon}`,
+        `http://127.0.0.1:8000/api/analysis/village?name=${encodeURIComponent(name)}&latitude=${lat}&longitude=${lon}`,
       );
       const analysisData = analysisRes.ok ? await analysisRes.json() : null;
 
@@ -332,6 +334,8 @@ export function DashboardInteractiveMap({
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           attribution="Tiles &copy; Esri"
+          maxNativeZoom={17}
+          maxZoom={24}
         />
         
         {searchCoords && villageAnalysis?.imageUrl && (
@@ -661,6 +665,8 @@ export function AddFieldModalContent({ onClose }: { onClose: () => void }) {
           <TileLayer
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             attribution="Tiles &copy; Esri"
+            maxNativeZoom={17}
+            maxZoom={24}
           />
 
           {searchedLocation && (

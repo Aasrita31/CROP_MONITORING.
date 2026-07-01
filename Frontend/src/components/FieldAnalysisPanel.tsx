@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   Droplets, Leaf, TrendingUp, AlertTriangle, CheckCircle2,
   Sprout, Activity, Loader2, Thermometer, Wind, CloudRain,
-  Layers, BrainCircuit, History, CalendarDays, ActivitySquare, Target
+  Layers, BrainCircuit, History, CalendarDays, ActivitySquare, Target, Volume2, PlayCircle
 } from "lucide-react";
 import type { RegisteredField } from "@/context/DashboardContext";
 import { SatelliteEvidencePanel } from "./SatelliteEvidencePanel";
@@ -52,7 +52,7 @@ export function FieldAnalysisPanel({ field }: { field: RegisteredField }) {
 
     const fetchData = async () => {
       try {
-        const baseUrl = `http://127.0.0.1:8080/api/farms/${field.id}`;
+        const baseUrl = `http://127.0.0.1:8000/api/farms/${field.id}`;
         const [resA, resW, resS, resAI, resT, resH] = await Promise.all([
           fetch(`${baseUrl}/analytics`), fetch(`${baseUrl}/weather`),
           fetch(`${baseUrl}/soil`), fetch(`${baseUrl}/ai`),
@@ -97,7 +97,7 @@ export function FieldAnalysisPanel({ field }: { field: RegisteredField }) {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500 pb-12">
       
       {/* 1. Overall Health & Digital Twin ID */}
-      <div className="bg-gradient-to-r from-emerald-900/40 to-slate-900/40 border border-emerald-500/20 rounded-2xl p-5 flex items-center justify-between gap-4 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-emerald-900/40 to-slate-900/40 border border-emerald-500/20 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative overflow-hidden">
         <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
           <ActivitySquare className="h-32 w-32" />
         </div>
@@ -106,7 +106,7 @@ export function FieldAnalysisPanel({ field }: { field: RegisteredField }) {
           <h2 className="text-2xl font-black text-white">{field.name}</h2>
           <div className="text-xs text-emerald-100/70 mt-1 flex items-center gap-2">
             <span className="bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-300 font-bold">{field.areaAcres.toFixed(2)} Acres</span>
-            <span>{field.cropName || "Paddy (Rice)"}</span>
+            <span>{(field as any).cropName || "Paddy (Rice)"}</span>
             <span>·</span>
             <span>{field.villageName}</span>
           </div>
@@ -129,10 +129,26 @@ export function FieldAnalysisPanel({ field }: { field: RegisteredField }) {
         </div>
       </div>
 
+      {/* Audio Playback Button */}
+      <button 
+        onClick={() => {
+          const vigor = analytics?.ndvi || 0;
+          const moisture = analytics?.ndmi || 0;
+          const status = score >= 70 ? "Excellent" : score >= 50 ? "Moderate" : "Critical";
+          const text = `Hello. Your farm's digital twin reports a health status of ${status}. The crop vigor index is ${vigor.toFixed(2)}, and moisture is ${moisture.toFixed(2)}.`;
+          const audioUrl = `http://127.0.0.1:8000/api/tts?text=${encodeURIComponent(text)}&lang=te`;
+          const audio = new Audio(audioUrl);
+          audio.play().catch(console.error);
+        }}
+        className="w-full flex items-center justify-center gap-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold py-3 rounded-xl transition border border-emerald-300 shadow-sm"
+      >
+        <Volume2 className="h-5 w-5" /> Listen to Crop Report
+      </button>
+
       {/* 2. Vegetation & Water Analytics */}
       <div>
         <SectionHeader title="Vegetation & Water" icon={<Leaf className="h-4 w-4" />} colorClass="text-emerald-500" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <MetricCard title="NDVI (Vigor)" value={(analytics?.ndvi || 0).toFixed(3)} unit="idx" icon={<TrendingUp className="h-4 w-4" />} color="#10b981" />
           <MetricCard title="NDMI (Moisture)" value={(analytics?.ndmi || 0).toFixed(3)} unit="idx" icon={<Droplets className="h-4 w-4" />} color="#3b82f6" />
           <MetricCard title="EVI (Growth)" value={(analytics?.evi || 0).toFixed(3)} unit="idx" icon={<Sprout className="h-4 w-4" />} color="#84cc16" />
@@ -143,7 +159,7 @@ export function FieldAnalysisPanel({ field }: { field: RegisteredField }) {
       {/* 3. Weather Analytics */}
       <div>
         <SectionHeader title="Microclimate Weather" icon={<Wind className="h-4 w-4" />} colorClass="text-sky-500" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <MetricCard title="Temperature" value={weather?.temperature || "--"} unit="°C" icon={<Thermometer className="h-4 w-4" />} color="#f97316" />
           <MetricCard title="Humidity" value={weather?.humidity || "--"} unit="%" icon={<Droplets className="h-4 w-4" />} color="#06b6d4" />
           <MetricCard title="Wind Speed" value={weather?.wind_speed || "--"} unit="km/h" icon={<Wind className="h-4 w-4" />} color="#64748b" />
@@ -154,7 +170,7 @@ export function FieldAnalysisPanel({ field }: { field: RegisteredField }) {
       {/* 4. Soil Analytics */}
       <div>
         <SectionHeader title="Soil Health" icon={<Layers className="h-4 w-4" />} colorClass="text-amber-600" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <MetricCard title="Nitrogen (N)" value={soil?.nitrogen || "--"} unit="kg/ha" icon={<Activity className="h-4 w-4" />} color="#10b981" />
           <MetricCard title="Phosphorus (P)" value={soil?.phosphorus || "--"} unit="kg/ha" icon={<Activity className="h-4 w-4" />} color="#f59e0b" />
           <MetricCard title="Potassium (K)" value={soil?.potassium || "--"} unit="kg/ha" icon={<Activity className="h-4 w-4" />} color="#8b5cf6" />
@@ -200,7 +216,7 @@ export function FieldAnalysisPanel({ field }: { field: RegisteredField }) {
         </div>
       </div>
 
-      <SatelliteEvidencePanel meta={null} captureDate={null} source="Copernicus Data Space" compact />
+      <SatelliteEvidencePanel meta={null} captureDate={undefined} source="Copernicus Data Space" compact />
     </div>
   );
 }

@@ -10,6 +10,16 @@ from app.services.geometry_service import geometry_service
 
 router = APIRouter(prefix="/farmer-fields", tags=["Farmer Fields"])
 
+from pydantic import BaseModel
+
+class FarmerCreateRequest(BaseModel):
+    name: str
+    phone: str
+    aadhaar: str
+    address: str = None
+    district: str = None
+    gender: str = None
+
 # In a real app, this would be a dependency getting the logged-in user
 # For now, we'll use a single static farmer ID or create one if it doesn't exist
 DEMO_FARMER_ID = "farmer-123"
@@ -17,7 +27,15 @@ DEMO_FARMER_ID = "farmer-123"
 def get_demo_farmer(db: Session):
     farmer = db.query(Farmer).filter(Farmer.id == DEMO_FARMER_ID).first()
     if not farmer:
-        farmer = Farmer(id=DEMO_FARMER_ID, name="Demo Farmer", phone="1234567890")
+        farmer = Farmer(
+            id=DEMO_FARMER_ID, 
+            name="Demo Farmer", 
+            phone="1234567890",
+            aadhaar="123456789012",
+            address="Marlapudi village, Movva mandal",
+            district="Krishna",
+            gender="Male"
+        )
         db.add(farmer)
         db.commit()
     return farmer
@@ -104,3 +122,48 @@ def delete_field(field_id: str, db: Session = Depends(get_db)):
     db.delete(field)
     db.commit()
     return {"message": "Field deleted successfully"}
+
+@router.post("/register-farmer")
+def register_farmer(payload: FarmerCreateRequest, db: Session = Depends(get_db)):
+    aadhaar_clean = "".join(filter(str.isdigit, payload.aadhaar))
+    if len(aadhaar_clean) != 12:
+        raise HTTPException(status_code=400, detail="Aadhaar card number must be exactly 12 digits")
+
+    existing_phone = db.query(Farmer).filter(Farmer.phone == payload.phone).first()
+    if existing_phone:
+        raise HTTPException(status_code=400, detail="Phone number is already registered")
+
+    existing_aadhaar = db.query(Farmer).filter(Farmer.aadhaar == aadhaar_clean).first()
+    if existing_aadhaar:
+        raise HTTPException(status_code=400, detail="Aadhaar card number is already registered")
+
+    farmer = Farmer(
+        id=f"farmer-{uuid.uuid4()}",
+        name=payload.name,
+        phone=payload.phone,
+        aadhaar=aadhaar_clean,
+        address=payload.address,
+        district=payload.district,
+        gender=payload.gender
+    )
+    db.add(farmer)
+    db.commit()
+    db.refresh(farmer)
+
+    return {"message": "Farmer registered successfully", "farmer_id": farmer.id}
+
+@router.get("/farmer/{farmer_id}")
+def get_farmer_details(farmer_id: str, db: Session = Depends(get_db)):
+    farmer = db.query(Farmer).filter(Farmer.id == farmer_id).first()
+    if not farmer:
+        raise HTTPException(status_code=404, detail="Farmer not found")
+    return {
+        "id": farmer.id,
+        "name": farmer.name,
+        "phone": farmer.phone,
+        "aadhaar": farmer.aadhaar,
+        "address": farmer.address,
+        "district": farmer.district,
+        "gender": farmer.gender,
+        "createdAt": farmer.created_at.isoformat() if farmer.created_at else None
+    }

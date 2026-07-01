@@ -99,7 +99,8 @@ export function FieldDrawerModal({ initialCenter, onSave, onClose }: FieldDrawer
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         {
           attribution: "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
-          maxZoom: 19,
+          maxNativeZoom: 17,
+          maxZoom: 24,
         }
       ).addTo(map);
 
@@ -107,95 +108,106 @@ export function FieldDrawerModal({ initialCenter, onSave, onClose }: FieldDrawer
       L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
         { opacity: 0.7, maxZoom: 19 }
-      ).addTo(map);
-
-      const drawnItems = new L.FeatureGroup();
+      ).addTo(map);      const drawnItems = new L.FeatureGroup();
       map.addLayer(drawnItems);
       drawnLayersRef.current = drawnItems;
-
-      // Leaflet.draw toolbar
-      const drawControl = new (L as any).Control.Draw({
-        draw: {
-          polygon: {
-            allowIntersection: false,
-            showArea: true,
-            shapeOptions: {
-              color: "#10b981",
-              weight: 3,
-              fillColor: "#10b981",
-              fillOpacity: 0.25,
-            },
-          },
-          polyline: false,
-          rectangle: {
-            shapeOptions: { color: "#10b981", weight: 3, fillColor: "#10b981", fillOpacity: 0.25 },
-          },
-          circle: false,
-          marker: false,
-          circlemarker: false,
-        },
-        edit: {
-          featureGroup: drawnItems,
-          remove: true,
-        },
-      });
-      map.addControl(drawControl);
-      drawControlRef.current = drawControl;
-
-      map.on((L as any).Draw.Event.CREATED, (e: any) => {
-        drawnItems.clearLayers();
-        drawnItems.addLayer(e.layer);
-        currentPolygonRef.current = e.layer;
-
-        const latlngs: [number, number][] = e.layer.getLatLngs()[0].map((ll: any) => [ll.lat, ll.lng]);
-        setPolygon(latlngs);
-
-        const areaM2 = polygonAreaM2(latlngs);
-        setAreaAcres(parseFloat(m2ToAcres(areaM2).toFixed(3)));
-        setAreaHa(parseFloat(m2ToHectares(areaM2).toFixed(4)));
-
-        // Compute centroid
-        const avgLat = latlngs.reduce((s, p) => s + p[0], 0) / latlngs.length;
-        const avgLon = latlngs.reduce((s, p) => s + p[1], 0) / latlngs.length;
-        reverseGeocode(avgLat, avgLon);
-      });
-
-      map.on((L as any).Draw.Event.EDITED, (e: any) => {
-        e.layers.eachLayer((layer: any) => {
-          const latlngs: [number, number][] = layer.getLatLngs()[0].map((ll: any) => [ll.lat, ll.lng]);
-          setPolygon(latlngs);
-          const areaM2 = polygonAreaM2(latlngs);
-          setAreaAcres(parseFloat(m2ToAcres(areaM2).toFixed(3)));
-          setAreaHa(parseFloat(m2ToHectares(areaM2).toFixed(4)));
-        });
-      });
-
-      map.on((L as any).Draw.Event.DELETED, () => {
-        setPolygon([]);
-        setAreaAcres(0);
-        setAreaHa(0);
-        currentPolygonRef.current = null;
-      });
 
       leafletMapRef.current = map;
     };
 
     loadLeaflet();
-
     return () => {
-      if (leafletMapRef.current) {
-        leafletMapRef.current.remove();
-        leafletMapRef.current = null;
-      }
+      if (leafletMapRef.current) { leafletMapRef.current.remove(); leafletMapRef.current = null; }
     };
   }, []);
 
+  const [points, setPoints] = useState<[number, number][]>([]);
+
+  // Sync state: reset local points when polygon is cleared
+  useEffect(() => {
+    if (polygon.length === 0) {
+      setPoints([]);
+    }
+  }, [polygon]);
+
+  // Click listener for drawing 4 corners
+  useEffect(() => {
+    const map = leafletMapRef.current;
+    if (!map || step !== "draw") return;
+
+    const onClick = (e: any) => {
+      if (points.length >= 4) return;
+      const newPoints = [...points, [e.latlng.lat, e.latlng.lng] as [number, number]];
+      setPoints(newPoints);
+    };
+
+    map.on("click", onClick);
+    return () => {
+      map.off("click", onClick);
+    };
+  }, [points, step]);
+
+  // Render temporary markers and connection lines
+  useEffect(() => {
+    const map = leafletMapRef.current;
+    if (!map) return;
+
+    const L = window.L;
+    if (!L) return;
+
+    const tempGroup = L.featureGroup().addTo(map);
+
+    // Numbered markers for each corner
+    if (points.length < 4) {
+      points.forEach((pt, index) => {
+        L.marker(pt, {
+          icon: L.divIcon({
+            html: `<div class="h-6 w-6 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-lg">${index + 1}</div>`,
+            className: 'bg-transparent',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          })
+        }).addTo(tempGroup);
+      });
+    }
+
+    // Drawing boundary line
+    if (points.length >= 2) {
+      L.polygon(points, {
+        color: "#10b981",
+        weight: 3,
+        fillColor: points.length >= 3 ? "#10b981" : "transparent",
+        fillOpacity: points.length >= 3 ? 0.25 : 0
+      }).addTo(tempGroup);
+    }
+
+    // Auto-calculate on 4th point
+    if (points.length === 4 && polygon.length === 0) {
+      const finishDrawing = async () => {
+        setPolygon(points);
+
+        const areaM2 = polygonAreaM2(points);
+        setAreaAcres(parseFloat(m2ToAcres(areaM2).toFixed(3)));
+        setAreaHa(parseFloat(m2ToHectares(areaM2).toFixed(4)));
+
+        // Compute centroid
+        const avgLat = points.reduce((s, p) => s + p[0], 0) / 4;
+        const avgLon = points.reduce((s, p) => s + p[1], 0) / 4;
+        reverseGeocode(avgLat, avgLon);
+      };
+      finishDrawing();
+    }
+
+    return () => {
+      map.removeLayer(tempGroup);
+    };
+  }, [points, polygon]);
+
   const clearPolygon = () => {
-    if (drawnLayersRef.current) drawnLayersRef.current.clearLayers();
-    currentPolygonRef.current = null;
     setPolygon([]);
     setAreaAcres(0);
     setAreaHa(0);
+    setPoints([]);
   };
 
   const handleSave = () => {
@@ -223,7 +235,7 @@ export function FieldDrawerModal({ initialCenter, onSave, onClose }: FieldDrawer
         </div>
         <div>
           <div className="text-sm font-bold text-white">Draw Your Field Boundary</div>
-          <div className="text-[10px] text-slate-400">Click the polygon tool on the left, then click points around your field</div>
+          <div className="text-[10px] text-slate-400">Click the polygon tool on the left, then click 4 points around your field</div>
         </div>
         <div className="ml-auto flex items-center gap-2">
           {polygon.length >= 3 && (
@@ -251,7 +263,7 @@ export function FieldDrawerModal({ initialCenter, onSave, onClose }: FieldDrawer
         {polygon.length === 0 && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-slate-900/90 backdrop-blur border border-emerald-500/30 text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-xl flex items-center gap-2 pointer-events-none field-draw-hint">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            Click the polygon icon (▢) in the toolbar · then click to mark your field corners
+            Click the polygon icon (▢) in the toolbar · then click 4 points to mark your field corners
           </div>
         )}
       </div>

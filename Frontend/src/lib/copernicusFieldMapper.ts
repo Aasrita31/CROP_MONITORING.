@@ -11,6 +11,7 @@ export interface CopernicusPolygon {
   name: string;
   polygonCoords: [number, number][];
   mean_ndvi: number;
+  mean_ndmi?: number;
 }
 
 export function buildFieldFromCopernicusPolygon(
