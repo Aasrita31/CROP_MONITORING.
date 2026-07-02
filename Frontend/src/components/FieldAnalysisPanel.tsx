@@ -97,7 +97,7 @@ export function FieldAnalysisPanel({ field }: { field: RegisteredField }) {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500 pb-12">
       
       {/* 1. Overall Health & Digital Twin ID */}
-      <div className="bg-gradient-to-r from-emerald-900/40 to-slate-900/40 border border-emerald-500/20 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-emerald-900/40 to-slate-900/40 border border-emerald-500/20 rounded-2xl p-5 flex flex-col items-start gap-4 relative overflow-hidden">
         <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
           <ActivitySquare className="h-32 w-32" />
         </div>
@@ -156,72 +156,7 @@ export function FieldAnalysisPanel({ field }: { field: RegisteredField }) {
         </div>
       </div>
 
-      {/* 3. Weather Analytics */}
-      <div>
-        <SectionHeader title="Microclimate Weather" icon={<Wind className="h-4 w-4" />} colorClass="text-sky-500" />
-        <div className="grid grid-cols-2 gap-3">
-          <MetricCard title="Temperature" value={weather?.temperature || "--"} unit="°C" icon={<Thermometer className="h-4 w-4" />} color="#f97316" />
-          <MetricCard title="Humidity" value={weather?.humidity || "--"} unit="%" icon={<Droplets className="h-4 w-4" />} color="#06b6d4" />
-          <MetricCard title="Wind Speed" value={weather?.wind_speed || "--"} unit="km/h" icon={<Wind className="h-4 w-4" />} color="#64748b" />
-          <MetricCard title="Rain Probability" value={weather?.rain_probability || "--"} unit="%" icon={<CloudRain className="h-4 w-4" />} color="#3b82f6" />
-        </div>
-      </div>
-
-      {/* 4. Soil Analytics */}
-      <div>
-        <SectionHeader title="Soil Health" icon={<Layers className="h-4 w-4" />} colorClass="text-amber-600" />
-        <div className="grid grid-cols-2 gap-3">
-          <MetricCard title="Nitrogen (N)" value={soil?.nitrogen || "--"} unit="kg/ha" icon={<Activity className="h-4 w-4" />} color="#10b981" />
-          <MetricCard title="Phosphorus (P)" value={soil?.phosphorus || "--"} unit="kg/ha" icon={<Activity className="h-4 w-4" />} color="#f59e0b" />
-          <MetricCard title="Potassium (K)" value={soil?.potassium || "--"} unit="kg/ha" icon={<Activity className="h-4 w-4" />} color="#8b5cf6" />
-          <MetricCard title="Soil pH" value={soil?.ph || "--"} unit="pH" icon={<Activity className="h-4 w-4" />} color="#ef4444" />
-        </div>
-      </div>
-
-      {/* 5. AI Recommendations */}
-      <div>
-        <SectionHeader title="AI Agronomist" icon={<BrainCircuit className="h-4 w-4" />} colorClass="text-purple-500" />
-        <div className="bg-card border border-border rounded-xl p-4 space-y-4">
-          <div className="flex gap-4">
-            <div className="flex-1 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-              <div className="text-[10px] uppercase font-bold text-red-500 flex items-center gap-1.5"><AlertTriangle className="h-3 w-3" /> Disease Risk</div>
-              <div className="text-xl font-black text-red-600 mt-1">{ai?.disease_risk || 0}%</div>
-            </div>
-            <div className="flex-1 bg-orange-500/10 border border-orange-500/20 rounded-lg p-3">
-              <div className="text-[10px] uppercase font-bold text-orange-500 flex items-center gap-1.5"><Bug className="h-3 w-3" /> Pest Risk</div>
-              <div className="text-xl font-black text-orange-600 mt-1">{ai?.pest_risk || 0}%</div>
-            </div>
-          </div>
-          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
-            <div className="text-[10px] uppercase font-bold text-emerald-600 mb-1">AI Recommendation</div>
-            <div className="text-sm font-semibold text-foreground leading-relaxed">{ai?.recommendation || "No current recommendations."}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* 6. Farm Timeline */}
-      <div>
-        <SectionHeader title="Crop Lifecycle Timeline" icon={<CalendarDays className="h-4 w-4" />} colorClass="text-indigo-500" />
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="relative border-l-2 border-indigo-500/20 ml-3 space-y-6 py-2">
-            {timeline?.map((evt: any, i: number) => (
-              <div key={i} className="relative pl-6">
-                <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-indigo-500 border-4 border-card" />
-                <div className="text-[10px] font-bold text-indigo-500">{evt.event_date}</div>
-                <div className="text-sm font-bold text-foreground">{evt.event_name}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{evt.description}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       <SatelliteEvidencePanel meta={null} captureDate={undefined} source="Copernicus Data Space" compact />
     </div>
   );
-}
-
-// Dummy icon for Bug since it was missing in import
-function Bug(props: any) {
-  return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>;
 }

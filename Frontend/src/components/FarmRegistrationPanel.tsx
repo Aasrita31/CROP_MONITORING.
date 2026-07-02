@@ -56,19 +56,64 @@ function InlineFieldMap({
   const [searchVal, setSearchVal] = useState("");
   const [searching, setSearching] = useState(false);
 
+  const searchBoundaryLayerRef = useRef<any>(null);
+
   const searchLocation = async () => {
     if (!searchVal.trim() || !leafletMapRef.current) return;
+    const L = window.L;
+    if (!L) return;
+    
     setSearching(true);
     try {
+      const query = encodeURIComponent(searchVal + ", Andhra Pradesh, India");
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchVal)}&format=json&limit=1`,
+        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=5&countrycodes=in&polygon_geojson=1&polygon_threshold=0.01`,
         { headers: { "User-Agent": "AgriTwin/1.0" } }
       );
       const data = await res.json();
-      if (data[0]) {
-        leafletMapRef.current.setView([parseFloat(data[0].lat), parseFloat(data[0].lon)], 16);
+      if (data && data.length > 0) {
+        const map = leafletMapRef.current;
+
+        // Remove previous boundary if it exists
+        if (searchBoundaryLayerRef.current) {
+          map.removeLayer(searchBoundaryLayerRef.current);
+          searchBoundaryLayerRef.current = null;
+        }
+
+        // Search through results to find an actual administrative Polygon/MultiPolygon
+        let bestPolygonResult = data.find((d: any) => 
+          d.geojson && (d.geojson.type === "Polygon" || d.geojson.type === "MultiPolygon")
+        );
+
+        let boundary;
+        const styleOpts = {
+          color: "#3b82f6", // Vibrant blue
+          weight: 4,
+          opacity: 0.8,
+          fillColor: "#3b82f6",
+          fillOpacity: 0.15,
+          dashArray: "10 5"
+        };
+
+        if (bestPolygonResult) {
+          // If we found the district/region polygon, draw it!
+          boundary = L.geoJSON(bestPolygonResult.geojson, { style: styleOpts }).addTo(map);
+        } else if (data[0].boundingbox) {
+          // Fallback to bounding box rectangle of the first result (city center)
+          const [latMin, latMax, lonMin, lonMax] = data[0].boundingbox.map(parseFloat);
+          boundary = L.rectangle([[latMin, lonMin], [latMax, lonMax]], styleOpts).addTo(map);
+        }
+
+        if (boundary) {
+          searchBoundaryLayerRef.current = boundary;
+          map.fitBounds(boundary.getBounds(), { maxZoom: 16, padding: [20, 20] });
+        } else {
+          map.setView([parseFloat(data[0].lat), parseFloat(data[0].lon)], 15);
+        }
       }
-    } catch {}
+    } catch (err) {
+      console.error("Search failed:", err);
+    }
     setSearching(false);
   };
 
@@ -193,12 +238,15 @@ function InlineFieldMap({
         const avgLat = points.reduce((s, p) => s + p[0], 0) / 4;
         const avgLon = points.reduce((s, p) => s + p[1], 0) / 4;
 
-        let village = "Unknown Village", district = "Unknown District";
+        let village = searchVal.trim() || "Unknown Village";
+        let district = "Unknown District";
         try {
           const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${avgLat}&lon=${avgLon}&format=json`, { headers: { "User-Agent": "AgriTwin/1.0" } });
           const d = await r.json();
           const addr = d.address || {};
-          village = addr.village || addr.town || addr.city || addr.suburb || village;
+          if (!searchVal.trim()) {
+            village = addr.village || addr.town || addr.city || addr.suburb || village;
+          }
           district = addr.county || addr.state_district || addr.district || district;
         } catch {}
 
@@ -414,9 +462,9 @@ export function FarmRegistrationPanel() {
     }
   };
 
-  // ── LEFT PANEL CONTENT ────────────────────────────────────────────────────
-  const renderLeftPanel = () => {
-    // ── ALL FIELDS LIST ────────────────────────────────────────────────────
+  // ── SIDE PANEL CONTENT (Right Side) ───────────────────────────────────────
+  const renderSidePanel = () => {
+    // ── LIST VIEW ─────────────────────────────────────────────────────────
     if (view === "list") {
       return (
         <div className="flex flex-col h-full">
@@ -549,8 +597,6 @@ export function FarmRegistrationPanel() {
             {/* Crop Name */}
             <SelectField label="Crop Name" value={formCrop} onChange={setFormCrop} options={CROP_OPTIONS} placeholder="Search or select crop" />
 
-            {/* Variety */}
-            <SelectField label="Variety" value={formVariety} onChange={setFormVariety} options={VARIETY_OPTIONS} placeholder="Select variety" />
 
             {/* Sowing Date */}
             {formStatus === "sown" && (
@@ -618,11 +664,11 @@ export function FarmRegistrationPanel() {
       );
     }
 
-    // ── FIELD DETAIL ───────────────────────────────────────────────────────
+    // ── FIELD DETAIL VIEW ──────────────────────────────────────────────────
     if (view === "detail" && activeField) {
       return (
-        <div className="flex flex-col h-full">
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+        <div className="flex flex-col h-full animate-in slide-in-from-right duration-200 w-[340px]">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
             <button onClick={() => setView("list")} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition">
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -651,10 +697,7 @@ export function FarmRegistrationPanel() {
 
   return (
     <div className="flex h-[calc(100vh-180px)] bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
-      {/* LEFT PANEL — white, clean */}
-      <div className="w-[300px] shrink-0 bg-white border-r border-gray-100 flex flex-col h-full">
-        {renderLeftPanel()}
-      </div>
+
 
       {/* RIGHT — Satellite Map */}
       <div className="flex-1 relative">
@@ -690,6 +733,11 @@ export function FarmRegistrationPanel() {
             <Plus className="h-3.5 w-3.5" /> Add Field
           </button>
         </div>
+      </div>
+
+      {/* MAIN PANEL (Right Side) */}
+      <div className={`${view === "detail" ? "w-[340px]" : "w-[300px]"} shrink-0 bg-white border-l border-gray-200 shadow-sm flex flex-col h-full z-10 transition-all duration-300 overflow-x-hidden`}>
+        {renderSidePanel()}
       </div>
     </div>
   );

@@ -18,7 +18,6 @@ const SIDEBAR_GROUPS = [
     group: "🌾 Farm Management",
     items: [
       { label: "Farm Registration & Fields", icon: MapPin   },
-      { label: "Farm Advisor",               icon: Bot      },
     ]
   },
   {
