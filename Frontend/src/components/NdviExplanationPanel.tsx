@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { Leaf, Sun, Droplets, AlertTriangle, ArrowRight, Map as MapIcon, Satellite } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Leaf, Sun, Droplets, AlertTriangle, ArrowRight, Map as MapIcon, Satellite, Loader2 } from 'lucide-react';
+import { useDashboardContext } from '@/context/DashboardContext';
 
 interface NdviExplanationPanelProps {
   villageName: string;
@@ -7,10 +8,15 @@ interface NdviExplanationPanelProps {
 }
 
 export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExplanationPanelProps) {
-  const defaultVillage = "Kadiyam";
-  const displayVillage = villageName || defaultVillage;
+  const { registeredFields } = useDashboardContext();
+  // Use actual registered field village as fallback (not a hardcoded default)
+  const fallbackVillage = registeredFields[0]?.villageName || "your farm";
+  const displayVillage = villageName || fallbackVillage;
 
-  const hasData = !!villageAnalysis;
+  const hasData = !!villageAnalysis && !villageAnalysis.detail;
+
+  // Show loading if we have fields but no analysis yet (auto-fetch in progress)
+  const isAutoFetching = !hasData && (registeredFields.length > 0 || !!villageName);
 
   // Use real values from Copernicus backend if available, otherwise null
   const red = hasData ? villageAnalysis.b4 : null;
@@ -79,7 +85,15 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
         <p className="mt-3 text-lg text-slate-500 max-w-3xl">
           Real Sentinel-2 satellite imagery is used to measure vegetation health for <strong className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">{displayVillage}</strong>.
         </p>
+        {/* Auto-fetching notice */}
+        {isAutoFetching && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-4 py-2 rounded-xl border border-blue-100 w-fit">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Fetching live Sentinel-2 data for <strong className="ml-1">{displayVillage}</strong>... this may take 15–30 seconds.
+          </div>
+        )}
       </header>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* SECTION 2: SENTINEL-2 VISUAL EXPLANATION */}

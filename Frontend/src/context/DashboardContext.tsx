@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 
 export interface RegisteredField {
   id: string;
@@ -55,6 +55,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [fieldPolygonAnalysis, setFieldPolygonAnalysis] = useState<any>(null);
 
   // Fetch fields on mount
+  const autoFetchedRef = useRef(false);
+
   useEffect(() => {
     const token = localStorage.getItem("agritwin_token");
     fetch("/api/farmer-fields", {
@@ -69,6 +71,37 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(console.error);
   }, []);
+
+  // Auto-fetch satellite analysis for the first registered field
+  // so analytics panels (NDVI, NDMI, EVI, SAVI) show real data on load
+  useEffect(() => {
+    if (autoFetchedRef.current || villageAnalysis) return;
+    if (registeredFields.length === 0) return;
+
+    const field = registeredFields[0];
+    if (!field.polygon || field.polygon.length < 3) return;
+
+    autoFetchedRef.current = true;
+
+    // Compute centroid of drawn polygon
+    const lats = field.polygon.map((p: [number, number]) => p[0]);
+    const lons = field.polygon.map((p: [number, number]) => p[1]);
+    const centerLat = lats.reduce((a: number, b: number) => a + b, 0) / lats.length;
+    const centerLon = lons.reduce((a: number, b: number) => a + b, 0) / lons.length;
+
+    const token = localStorage.getItem("agritwin_token");
+    fetch(
+      `/api/analysis/village?name=${encodeURIComponent(field.villageName)}&latitude=${centerLat}&longitude=${centerLon}`,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+    )
+      .then(res => res.json())
+      .then(analysis => {
+        setVillageAnalysis(analysis);
+        setSearchQuery(field.villageName);
+        setSearchCoords([centerLat, centerLon]);
+      })
+      .catch(err => console.error("Auto-fetch village analysis failed:", err));
+  }, [registeredFields]);
 
   const setRegisteredFields = (fields: RegisteredField[]) => {
     _setRegisteredFields(fields);

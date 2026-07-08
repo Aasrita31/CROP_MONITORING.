@@ -156,19 +156,32 @@ function RootComponent() {
 }
 
 function AuthGuard({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading, initialize } = useAuthStore();
-  const router = useRouter();
+  const { isAuthenticated, isLoading, isInitialized, initialize } = useAuthStore();
 
   useEffect(() => {
     initialize();
   }, []);
 
+  // Primary redirect: fires as soon as initialization completes
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.navigate({ to: "/landing" });
+    if (isInitialized && !isAuthenticated) {
+      window.location.replace("/landing");
     }
-  }, [isLoading, isAuthenticated]);
+  }, [isInitialized, isAuthenticated]);
 
+  // Nuclear failsafe: after 3 seconds, if still not authenticated, hard redirect
+  // This works even if all React state/router logic fails
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const { isAuthenticated: auth } = useAuthStore.getState();
+      if (!auth) {
+        window.location.replace("/landing");
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Show brief spinner only while validating an existing token
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#040e0a] flex flex-col items-center justify-center gap-4">
@@ -177,15 +190,17 @@ function AuthGuard({ children }: { children: ReactNode }) {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500" />
           </span>
-          <span className="text-base font-semibold text-emerald-100">Loading AgriTwin Intelligence...</span>
+          <span className="text-base font-semibold text-emerald-100">Verifying session...</span>
         </div>
       </div>
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isInitialized || !isAuthenticated) {
     return null;
   }
 
   return <>{children}</>;
 }
+
+

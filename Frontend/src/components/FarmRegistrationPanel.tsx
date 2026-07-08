@@ -76,60 +76,175 @@ function InlineFieldMap({
     if (!searchVal.trim() || !leafletMapRef.current) return;
     const L = window.L;
     if (!L) return;
-    
     setSearching(true);
+
+    // Remove previous boundary layer
+    if (searchBoundaryLayerRef.current) {
+      leafletMapRef.current.removeLayer(searchBoundaryLayerRef.current);
+      searchBoundaryLayerRef.current = null;
+    }
+
+    const map = leafletMapRef.current;
+    const styleOpts = {
+      color: "#3b82f6",
+      weight: 3,
+      opacity: 0.9,
+      fillColor: "#3b82f6",
+      fillOpacity: 0.12,
+      dashArray: "8 4",
+    };
+
     try {
+      // ── Step 1: Nominatim — ask for polygon_geojson ─────────────────────
       const query = encodeURIComponent(searchVal + ", Andhra Pradesh, India");
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=5&countrycodes=in&polygon_geojson=1&polygon_threshold=0.01`,
+      const nomRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=5&countrycodes=in&polygon_geojson=1`,
         { headers: { "User-Agent": "AgriTwin/1.0" } }
       );
-      const data = await res.json();
-      if (data && data.length > 0) {
-        const map = leafletMapRef.current;
+      const nomData = await nomRes.json();
 
-        // Remove previous boundary if it exists
-        if (searchBoundaryLayerRef.current) {
-          map.removeLayer(searchBoundaryLayerRef.current);
-          searchBoundaryLayerRef.current = null;
-        }
+      if (!nomData || nomData.length === 0) {
+        setSearching(false);
+        return;
+      }
 
-        // Search through results to find an actual administrative Polygon/MultiPolygon
-        let bestPolygonResult = data.find((d: any) => 
-          d.geojson && (d.geojson.type === "Polygon" || d.geojson.type === "MultiPolygon")
+      const first = nomData[0];
+      const centerLat = parseFloat(first.lat);
+      const centerLon = parseFloat(first.lon);
+
+      // Check if Nominatim returned a real polygon (not just a point)
+      const polygonResult = nomData.find((d: any) =>
+        d.geojson && (d.geojson.type === "Polygon" || d.geojson.type === "MultiPolygon")
+      );
+
+      if (polygonResult) {
+        // ── Got real polygon from Nominatim ─────────────────────────────
+        const layer = L.geoJSON(polygonResult.geojson, { style: styleOpts }).addTo(map);
+        searchBoundaryLayerRef.current = layer;
+        map.fitBounds(layer.getBounds(), { maxZoom: 15, padding: [30, 30] });
+        setSearching(false);
+        return;
+      }
+
+      // ── Step 2: Try Overpass API for the actual admin boundary ──────────
+      // This finds OSM relation/way boundaries for village names
+      const overpassQuery = `
+        [out:json][timeout:20];
+        (
+          relation["name"~"${searchVal.trim()}",i]["boundary"="administrative"];
+          relation["name"~"${searchVal.trim()}",i]["place"];
+          way["name"~"${searchVal.trim()}",i]["boundary"="administrative"];
         );
+        out geom;
+      `;
 
-        let boundary;
-        const styleOpts = {
-          color: "#3b82f6", // Vibrant blue
-          weight: 4,
-          opacity: 0.8,
-          fillColor: "#3b82f6",
-          fillOpacity: 0.15,
-          dashArray: "10 5"
-        };
+      let boundaryDrawn = false;
+      try {
+        const ovRes = await fetch("https://overpass-api.de/api/interpreter", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "data=" + encodeURIComponent(overpassQuery),
+        });
+        const ovData = await ovRes.json();
 
-        if (bestPolygonResult) {
-          // If we found the district/region polygon, draw it!
-          boundary = L.geoJSON(bestPolygonResult.geojson, { style: styleOpts }).addTo(map);
-        } else if (data[0].boundingbox) {
-          // Fallback to bounding box rectangle of the first result (city center)
-          const [latMin, latMax, lonMin, lonMax] = data[0].boundingbox.map(parseFloat);
-          boundary = L.rectangle([[latMin, lonMin], [latMax, lonMax]], styleOpts).addTo(map);
+        if (ovData.elements && ovData.elements.length > 0) {
+          // Convert Overpass elements to GeoJSON
+          const features: any[] = [];
+          for (const el of ovData.elements) {
+            if (el.type === "way" && el.geometry) {
+              const coords = el.geometry.map((pt: any) => [pt.lon, pt.lat]);
+              if (coords.length >= 3) {
+                // Close the ring
+                if (coords[0][0] !== coords[coords.length - 1][0] ||
+                    coords[0][1] !== coords[coords.length - 1][1]) {
+                  coords.push(coords[0]);
+                }
+                features.push({
+                  type: "Feature",
+                  geometry: { type: "Polygon", coordinates: [coords] },
+                  properties: el.tags || {}
+                });
+              }
+            } else if (el.type === "relation" && el.members) {
+              // For relations, collect all outer way geometries
+              const outerCoords: number[][][] = [];
+              for (const member of el.members) {
+                if (member.role === "outer" && member.geometry) {
+                  const ring = member.geometry.map((pt: any) => [pt.lon, pt.lat]);
+                  if (ring.length >= 3) {
+                    if (ring[0][0] !== ring[ring.length - 1][0] ||
+                        ring[0][1] !== ring[ring.length - 1][1]) {
+                      ring.push(ring[0]);
+                    }
+                    outerCoords.push(ring);
+                  }
+                }
+              }
+              if (outerCoords.length > 0) {
+                features.push({
+                  type: "Feature",
+                  geometry: outerCoords.length === 1
+                    ? { type: "Polygon", coordinates: outerCoords }
+                    : { type: "MultiPolygon", coordinates: outerCoords.map(r => [r]) },
+                  properties: el.tags || {}
+                });
+              }
+            }
+          }
+
+          if (features.length > 0) {
+            const geojsonLayer = L.geoJSON(
+              { type: "FeatureCollection", features },
+              { style: styleOpts }
+            ).addTo(map);
+            searchBoundaryLayerRef.current = geojsonLayer;
+            map.fitBounds(geojsonLayer.getBounds(), { maxZoom: 15, padding: [30, 30] });
+            boundaryDrawn = true;
+          }
+        }
+      } catch (ovErr) {
+        console.warn("Overpass query failed, using fallback:", ovErr);
+      }
+
+      if (!boundaryDrawn) {
+        // ── Step 3: Fallback — draw a circle (better than a square box) ──
+        // Estimate village radius from bounding box if available
+        let radiusM = 800; // default ~800m radius
+        if (first.boundingbox) {
+          const [latMin, latMax, lonMin, lonMax] = first.boundingbox.map(parseFloat);
+          const latSpan = (latMax - latMin) * 111000; // degrees to meters
+          const lonSpan = (lonMax - lonMin) * 111000 * Math.cos(centerLat * Math.PI / 180);
+          radiusM = Math.min(Math.max(Math.max(latSpan, lonSpan) / 2, 400), 3000);
         }
 
-        if (boundary) {
-          searchBoundaryLayerRef.current = boundary;
-          map.fitBounds(boundary.getBounds(), { maxZoom: 16, padding: [20, 20] });
-        } else {
-          map.setView([parseFloat(data[0].lat), parseFloat(data[0].lon)], 15);
-        }
+        const circle = L.circle([centerLat, centerLon], {
+          radius: radiusM,
+          ...styleOpts,
+          fillOpacity: 0.1,
+          dashArray: "6 6",
+        }).addTo(map);
+
+        // Add a note that it's approximate
+        L.popup({ closeButton: false, autoClose: true, offset: [0, -10] })
+          .setLatLng([centerLat, centerLon])
+          .setContent(
+            `<div style="font-family:sans-serif;font-size:12px;text-align:center">
+              <strong>${searchVal}</strong><br/>
+              <span style="color:#6b7280;font-size:10px">⚠️ Approximate area — no boundary in OpenStreetMap</span>
+             </div>`
+          )
+          .openOn(map);
+
+        searchBoundaryLayerRef.current = circle;
+        map.fitBounds(circle.getBounds(), { maxZoom: 15, padding: [30, 30] });
       }
     } catch (err) {
       console.error("Search failed:", err);
     }
     setSearching(false);
   };
+
+
 
   useEffect(() => {
     if (!mapRef.current || leafletMapRef.current) return;
@@ -363,7 +478,8 @@ export function FarmRegistrationPanel() {
     registeredFields, setRegisteredFields,
     activeField, setActiveField,
     fieldPolygonAnalysis, setFieldPolygonAnalysis,
-    searchCoords,
+    searchCoords, setSearchCoords,
+    setSearchQuery, setVillageAnalysis,
   } = useDashboardContext();
 
   // View modes
@@ -592,6 +708,31 @@ export function FarmRegistrationPanel() {
   const handleSelectField = (field: RegisteredField) => {
     setActiveField(field);
     setView("detail");
+
+    // ── Broadcast to all analytics panels ──────────────────────────────
+    // Compute centroid of the drawn polygon
+    if (field.polygon && field.polygon.length >= 3) {
+      const lats = field.polygon.map(p => p[0]);
+      const lons = field.polygon.map(p => p[1]);
+      const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+      const centerLon = lons.reduce((a, b) => a + b, 0) / lons.length;
+
+      // Update global state so NDVI / NDMI / EVI / SAVI panels reflect this field
+      setSearchQuery(field.villageName);
+      setSearchCoords([centerLat, centerLon]);
+
+      // Fetch village-level satellite analysis for all analytics panels
+      const token = localStorage.getItem("agritwin_token");
+      fetch(
+        `/api/analysis/village?name=${encodeURIComponent(field.villageName)}&latitude=${centerLat}&longitude=${centerLon}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      )
+        .then(res => res.json())
+        .then(analysis => setVillageAnalysis(analysis))
+        .catch(err => console.error("Village analysis fetch failed:", err));
+    }
+    // ────────────────────────────────────────────────────────────────────
+
     if (analysisCache[field.id]) {
       setFieldPolygonAnalysis(analysisCache[field.id]);
     } else if (field.landStatus) {

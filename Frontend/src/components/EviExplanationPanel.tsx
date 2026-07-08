@@ -152,11 +152,16 @@ export function EviExplanationPanel({ villageName, villageAnalysis }: EviExplana
             <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm flex flex-col">
               <div className="p-4 border-b border-border font-bold text-sm bg-accent/30">Field Status Illustration</div>
               <div className="relative flex-1 min-h-[200px] bg-black">
-                <img src={cropImage} alt="Crop status" className="absolute inset-0 w-full h-full object-cover opacity-80" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4">
+                {/* Real Sentinel-2 True Color Base */}
+                <img src={trueColorImageUrl} alt="Sentinel-2 Base" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                {/* Real EVI Heatmap Overlay */}
+                {eviImageUrl && (
+                  <img src={eviImageUrl} alt="EVI Heatmap" className="absolute inset-0 w-full h-full object-cover mix-blend-screen opacity-70" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4 z-10">
                   <h4 className="text-white font-bold text-lg mb-1">{villageName} Paddy Field</h4>
-                  <p className="text-white/80 text-xs">Visualizing crop density at {growthStage} stage. EVI score indicates {evi > 0.5 ? "dense green crop" : "moderate growth"}.</p>
+                  <p className="text-white/90 text-xs">Real Sentinel-2 Satellite Feed. EVI value: <span className="font-bold text-emerald-400">{evi.toFixed(3)}</span>. Crop density: {evi > 0.5 ? "dense green crop" : "moderate growth"}.</p>
                 </div>
               </div>
             </div>

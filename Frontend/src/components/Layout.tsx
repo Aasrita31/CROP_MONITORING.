@@ -128,12 +128,6 @@ function UserAvatarMenu() {
 
 export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const { crop, setCrop, setAiOpen } = useApp();
-  const { registeredFields, activeField, setActiveField } = useDashboardContext();
-
-  const handleFieldChange = (fieldId: string) => {
-    const field = registeredFields.find(f => f.id === fieldId);
-    if (field) setActiveField(field);
-  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-[9999] bg-gradient-to-r from-[#0A1F17] to-[#0F2E24] backdrop-blur-xl border-b border-[#16a34a]/20 shadow-[0_4px_30px_rgba(10,31,23,0.4)] animate-border-glow">
@@ -243,21 +237,6 @@ export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         </div>
  
         <div className="flex items-center gap-3.5 z-10">
-          <label className="hidden md:flex items-center gap-2 h-9 pl-2.5 pr-2 rounded-lg border border-[#1e3e30] bg-[#0A1F17]/60 text-emerald-100 hover:border-emerald-500/40 hover:text-white transition duration-300 group cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
-            <MapPin className="h-4 w-4 text-emerald-400/80 group-hover:text-emerald-300 group-hover:scale-110 transition-all duration-300" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/80">My Farm</span>
-            <select 
-              value={activeField?.id || ""} 
-              onChange={(e) => handleFieldChange(e.target.value)}
-              className="appearance-none bg-transparent text-xs font-semibold outline-none pr-1 cursor-pointer max-w-[190px] text-emerald-100"
-            >
-              {registeredFields.length === 0 && <option value="" className="bg-[#0F2E24] text-emerald-100">No fields</option>}
-              {registeredFields.map((f) => (
-                <option key={f.id} value={f.id} className="bg-[#0F2E24] text-emerald-100">{f.name}</option>
-              ))}
-            </select>
-            <ChevronDown className="h-3.5 w-3.5 text-emerald-400/60 group-hover:text-emerald-300 transition-transform duration-300" />
-          </label>
           <DateFilter />
           <button 
             onClick={() => setAiOpen(true)}

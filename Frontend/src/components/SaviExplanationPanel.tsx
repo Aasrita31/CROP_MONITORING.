@@ -156,11 +156,16 @@ export function SaviExplanationPanel({ villageName, villageAnalysis }: SaviExpla
                 <span className="text-xs font-normal text-muted-foreground">Synchronized with {villageName}</span>
               </div>
               <div className="relative flex-1 min-h-[200px] bg-black">
-                <img src={cropImage} alt="Field coverage" className="absolute inset-0 w-full h-full object-cover opacity-80" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4">
+                {/* Real Sentinel-2 True Color Base */}
+                <img src={trueColorImageUrl} alt="Sentinel-2 Base" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                {/* Real SAVI Heatmap Overlay */}
+                {saviImageUrl && (
+                  <img src={saviImageUrl} alt="SAVI Heatmap" className="absolute inset-0 w-full h-full object-cover mix-blend-screen opacity-70" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4 z-10">
                   <h4 className="text-white font-bold text-lg mb-1">{advisorTitle}</h4>
-                  <p className="text-white/80 text-xs">Visual representation of the canopy ratio based on Sentinel-2 SAVI.</p>
+                  <p className="text-white/90 text-xs">Real Sentinel-2 Satellite Feed. SAVI value: <span className="font-bold text-yellow-400">{savi.toFixed(3)}</span>. Crop cover ratio: {Math.round(cropCoverPct)}%.</p>
                 </div>
               </div>
             </div>

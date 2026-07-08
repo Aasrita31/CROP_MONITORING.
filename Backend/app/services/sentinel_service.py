@@ -8,7 +8,13 @@ load_dotenv()
 
 import requests
 import json
+import time
 from datetime import datetime
+
+# ── Simple in-memory cache so repeated searches for the same area are instant ──
+_band_cache: dict = {}      # key -> (timestamp, data)
+_meta_cache: dict = {}      # key -> (timestamp, data)
+_CACHE_TTL = 1800           # 30 minutes
 
 class SentinelService:
     @staticmethod
@@ -17,7 +23,7 @@ class SentinelService:
         try:
             url = f"https://nominatim.openstreetmap.org/search?q={village_name},Andhra+Pradesh,India&format=json&limit=1"
             headers = {"User-Agent": "AgriTwin-Monitoring-Platform"}
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=6)
             if response.status_code == 200 and len(response.json()) > 0:
                 data = response.json()[0]
                 return {
@@ -62,6 +68,11 @@ class SentinelService:
         return cls._token
 
     @classmethod
+    def _bbox_cache_key(cls, bbox: list) -> str:
+        """Round bbox coords to 2 decimal places so nearby searches share a cache entry."""
+        return "|".join(f"{round(v, 2):.2f}" for v in bbox)
+
+    @classmethod
     def fetch_sentinel2_bands(cls, bbox: list):
         """
         Fetches true Sentinel-2 B4 (Red) and B8 (NIR) from Copernicus Data Space API.
@@ -71,9 +82,18 @@ class SentinelService:
         import rasterio
         from rasterio.io import MemoryFile
         from datetime import timedelta
-        
+
+        # Return cached result if fresh
+        cache_key = cls._bbox_cache_key(bbox)
+        now = time.time()
+        if cache_key in _band_cache:
+            ts, cached = _band_cache[cache_key]
+            if now - ts < _CACHE_TTL:
+                print(f"[SentinelService] Cache HIT for bands key={cache_key}")
+                return cached
+
         min_lat, max_lat, min_lon, max_lon = bbox
-        
+
         token = cls.get_cdse_token()
         
         process_url = "https://sh.dataspace.copernicus.eu/api/v1/process"
@@ -150,22 +170,35 @@ class SentinelService:
                 b8_nir = dataset.read(4)
                 b11_swir = dataset.read(5)
                 
-        return {
+        result = {
             "b2": b2_blue,
             "b3": b3_green,
             "b4": b4_red,
             "b8": b8_nir,
             "b11": b11_swir,
             "bounds": [[min_lat, min_lon], [max_lat, max_lon]],
-            "capture_date": end_time.strftime("%Y-%m-%dT%H:%M:%SZ"), # Note: CDSE Catalog API is needed for exact date, using fetch date for now
+            "capture_date": end_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "source": "Copernicus Sentinel-2 L2A (Real Data)"
         }
+        # Store in cache
+        _band_cache[cache_key] = (time.time(), result)
+        print(f"[SentinelService] Cache STORED for bands key={cache_key}")
+        return result
 
     @classmethod
     def fetch_product_metadata(cls, bbox: list):
         """
         Queries CDSE OData API to fetch metadata of the latest Sentinel-2 L2A product intersecting bbox.
         """
+        # Return cached metadata if fresh
+        cache_key = cls._bbox_cache_key(bbox)
+        now = time.time()
+        if cache_key in _meta_cache:
+            ts, cached = _meta_cache[cache_key]
+            if now - ts < _CACHE_TTL:
+                print(f"[SentinelService] Cache HIT for metadata key={cache_key}")
+                return cached
+
         try:
             token = cls.get_cdse_token()
             min_lat, max_lat, min_lon, max_lon = bbox
@@ -205,7 +238,7 @@ class SentinelService:
                             sensing_date = dt.strftime("%Y-%m-%d %H:%M:%S UTC")
                         except:
                             pass
-                    return {
+                    meta_result = {
                         "productId": prod.get("Id"),
                         "productName": prod.get("Name"),
                         "sensingDate": sensing_date or "2026-06-03 04:57:01 UTC",
@@ -217,6 +250,8 @@ class SentinelService:
                         "processingLevel": "Level-2A (Bottom-of-Atmosphere Reflectance)",
                         "cloudCover": "4.2%"
                     }
+                    _meta_cache[cache_key] = (time.time(), meta_result)
+                    return meta_result
         except Exception as e:
             print(f"Failed to fetch Copernicus OData metadata: {e}")
         

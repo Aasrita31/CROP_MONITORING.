@@ -22,5 +22,18 @@ export default defineConfig({
         },
       },
     },
+    optimizeDeps: {
+      include: [
+        "leaflet",
+        "react-leaflet",
+        "recharts",
+        "framer-motion",
+        "lucide-react",
+        "axios",
+        "zustand",
+        "@tanstack/react-router",
+        "@tanstack/react-query",
+      ],
+    },
   },
 });
