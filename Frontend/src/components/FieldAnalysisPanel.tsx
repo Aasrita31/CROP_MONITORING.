@@ -52,7 +52,7 @@ export function FieldAnalysisPanel({ field }: { field: RegisteredField }) {
 
     const fetchData = async () => {
       try {
-        const baseUrl = `http://127.0.0.1:8000/api/farms/${field.id}`;
+        const baseUrl = `/api/farms/${field.id}`;
         const [resA, resW, resS, resAI, resT, resH] = await Promise.all([
           fetch(`${baseUrl}/analytics`), fetch(`${baseUrl}/weather`),
           fetch(`${baseUrl}/soil`), fetch(`${baseUrl}/ai`),
@@ -136,7 +136,7 @@ export function FieldAnalysisPanel({ field }: { field: RegisteredField }) {
           const moisture = analytics?.ndmi || 0;
           const status = score >= 70 ? "Excellent" : score >= 50 ? "Moderate" : "Critical";
           const text = `Hello. Your farm's digital twin reports a health status of ${status}. The crop vigor index is ${vigor.toFixed(2)}, and moisture is ${moisture.toFixed(2)}.`;
-          const audioUrl = `http://127.0.0.1:8000/api/tts?text=${encodeURIComponent(text)}&lang=te`;
+          const audioUrl = `/api/tts?text=${encodeURIComponent(text)}&lang=te`;
           const audio = new Audio(audioUrl);
           audio.play().catch(console.error);
         }}

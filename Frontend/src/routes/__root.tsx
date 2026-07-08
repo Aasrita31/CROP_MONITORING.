@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -14,6 +15,7 @@ import { reportLovableError } from "../lib/error-reporting";
 import { AppProvider } from "@/context/AppContext";
 import { Layout } from "@/components/Layout";
 import { DashboardProvider } from "@/context/DashboardContext";
+import { useAuthStore } from "@/stores/authStore";
 
 function NotFoundComponent() {
   return (
@@ -83,14 +85,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "🌿 FarmPulse — AI Precision Agriculture Digital Twin" },
+      { title: "🌿 AgriTwin Intelligence — AI Precision Agriculture Digital Twin" },
       { name: "description", content: "AI-powered digital twin for precision agriculture: live crop health, disease & pest monitoring, yield prediction and AI recommendations." },
-      { name: "author", content: "FarmPulse" },
-      { property: "og:title", content: "🌿 FarmPulse — AI Precision Agriculture" },
+      { name: "author", content: "AgriTwin Intelligence" },
+      { property: "og:title", content: "🌿 AgriTwin Intelligence — AI Precision Agriculture" },
       { property: "og:description", content: "Live digital twin of your farm with AI insights, heatmaps and yield forecasts." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
@@ -122,19 +123,69 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+// Pages that render WITHOUT the dashboard Layout (auth pages, landing)
+const AUTH_ROUTES = ["/landing", "/login", "/register", "/forgot-password"];
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const routerState = useRouterState();
+  const currentPath = routerState.location.pathname;
+
+  const isAuthPage = AUTH_ROUTES.includes(currentPath);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppProvider>
-        <DashboardProvider>
-          <Layout>
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-            <Outlet />
-          </Layout>
-        </DashboardProvider>
-      </AppProvider>
+      {isAuthPage ? (
+        // Auth pages render WITHOUT the dashboard layout
+        <Outlet />
+      ) : (
+        // Dashboard pages render WITH the full layout
+        <AuthGuard>
+          <AppProvider>
+            <DashboardProvider>
+              <Layout>
+                {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+                <Outlet />
+              </Layout>
+            </DashboardProvider>
+          </AppProvider>
+        </AuthGuard>
+      )}
     </QueryClientProvider>
   );
+}
+
+function AuthGuard({ children }: { children: ReactNode }) {
+  const { isAuthenticated, isLoading, initialize } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    initialize();
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.navigate({ to: "/landing" });
+    }
+  }, [isLoading, isAuthenticated]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#040e0a] flex flex-col items-center justify-center gap-4">
+        <div className="flex items-center gap-3">
+          <span className="relative flex h-4 w-4">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500" />
+          </span>
+          <span className="text-base font-semibold text-emerald-100">Loading AgriTwin Intelligence...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  return <>{children}</>;
 }

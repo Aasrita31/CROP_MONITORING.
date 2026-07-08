@@ -353,3 +353,11 @@ class NdviService:
                 })
 
         return polygons
+
+    @staticmethod
+    def get_ndvi_history(db, target_type: str, target_id: str):
+        from app.models.ndvi import NDVIData
+        return db.query(NDVIData).filter(
+            NDVIData.target_type == target_type,
+            NDVIData.target_id == target_id
+        ).all()

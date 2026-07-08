@@ -7,12 +7,19 @@ class Farmer(Base):
     __tablename__ = "farmers"
 
     id = Column(String, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Nullable for legacy seed data
     name = Column(String, default="Demo Farmer")
+    email = Column(String, nullable=True)
     phone = Column(String, unique=True, index=True, nullable=True)
     aadhaar = Column(String, unique=True, index=True, nullable=True)
     address = Column(String, nullable=True)
     district = Column(String, nullable=True)
+    village = Column(String, nullable=True)
+    state = Column(String, nullable=True)
     gender = Column(String, nullable=True)
+    preferred_language = Column(String, default="English")
+    profile_photo_url = Column(String, nullable=True)
+    visibility = Column(String, default="village")  # private/village/public
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     fields = relationship("FarmerField", back_populates="farmer", cascade="all, delete-orphan")

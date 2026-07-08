@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, Suspense } from "react";
 import {
   Plus, MapPin, ChevronLeft, Trash2, Loader2, RefreshCw,
   Satellite, Calendar, Droplets, Tractor, Wheat, Leaf,
-  ChevronDown, CheckCircle2, AlertTriangle, Search
+  ChevronDown, CheckCircle2, AlertTriangle, Search,
+  Footprints, Play, Square, Navigation, Focus
 } from "lucide-react";
 import { useDashboardContext, type RegisteredField } from "@/context/DashboardContext";
 import { FieldAnalysisPanel } from "./FieldAnalysisPanel";
@@ -39,15 +40,28 @@ function polygonAreaM2(pts: [number, number][]): number {
 }
 function m2ToAcres(m2: number) { return m2 / 4046.856; }
 
+// Haversine distance
+function haversineDistance(pt1: [number, number], pt2: [number, number]): number {
+  const R = 6371e3;
+  const rad = Math.PI / 180;
+  const dLat = (pt2[0] - pt1[0]) * rad;
+  const dLon = (pt2[1] - pt1[1]) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(pt1[0] * rad) * Math.cos(pt2[0] * rad) * Math.sin(dLon / 2) ** 2;
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
 // ── Inline satellite map with drawing ──────────────────────────────────────
 function InlineFieldMap({
-  center, onPolygonDrawn, existingFields, isDrawing, drawnPolygon
+  center, onPolygonDrawn, existingFields, isDrawing, drawnPolygon, gpsPoints, isGpsMapping, onGpsPointAdded
 }: {
   center: [number, number];
   onPolygonDrawn: (polygon: [number, number][], acres: number, village: string, district: string) => void;
   existingFields: RegisteredField[];
   isDrawing: boolean;
   drawnPolygon: [number, number][];
+  gpsPoints?: [number, number][];
+  isGpsMapping?: boolean;
+  onGpsPointAdded?: (pt: [number, number]) => void;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<any>(null);
@@ -180,22 +194,26 @@ function InlineFieldMap({
     }
   }, [drawnPolygon]);
 
-  // Click handler to collect up to 4 points
+  // Click handler to collect up to 4 points or drop simulator pins
   useEffect(() => {
     const map = leafletMapRef.current;
-    if (!map || !isDrawing) return;
+    if (!map) return;
 
     const onClick = (e: any) => {
-      if (points.length >= 4) return;
-      const newPoints = [...points, [e.latlng.lat, e.latlng.lng] as [number, number]];
-      setPoints(newPoints);
+      if (isDrawing) {
+        if (points.length >= 4) return;
+        const newPoints = [...points, [e.latlng.lat, e.latlng.lng] as [number, number]];
+        setPoints(newPoints);
+      } else if (isGpsMapping && onGpsPointAdded) {
+        onGpsPointAdded([e.latlng.lat, e.latlng.lng]);
+      }
     };
 
     map.on("click", onClick);
     return () => {
       map.off("click", onClick);
     };
-  }, [points, isDrawing]);
+  }, [points, isDrawing, isGpsMapping, onGpsPointAdded]);
 
   // Render temporary drawing layers
   useEffect(() => {
@@ -258,7 +276,42 @@ function InlineFieldMap({
     return () => {
       map.removeLayer(tempGroup);
     };
-  }, [points, drawnPolygon]);
+  }, [points, drawnPolygon, isDrawing]);
+
+  // Render GPS tracking path
+  useEffect(() => {
+    const map = leafletMapRef.current;
+    if (!map || !gpsPoints || gpsPoints.length === 0) return;
+
+    const L = window.L;
+    if (!L) return;
+
+    const gpsGroup = L.featureGroup().addTo(map);
+
+    // Draw path
+    L.polyline(gpsPoints, { color: "#3b82f6", weight: 4, dashArray: "5 5" }).addTo(gpsGroup);
+
+    // Draw current location marker
+    const currentPos = gpsPoints[gpsPoints.length - 1];
+    L.circleMarker(currentPos, {
+      radius: 6,
+      fillColor: "#3b82f6",
+      color: "#ffffff",
+      weight: 2,
+      fillOpacity: 1
+    }).addTo(gpsGroup);
+
+    if (isGpsMapping) {
+      map.panTo(currentPos, { animate: true, duration: 1 });
+    } else if (gpsPoints.length > 2) {
+      L.polygon(gpsPoints, { color: "#22c55e", weight: 3, fillColor: "#22c55e", fillOpacity: 0.2 }).addTo(gpsGroup);
+      map.fitBounds(L.polygon(gpsPoints).getBounds(), { padding: [30, 30] });
+    }
+
+    return () => {
+      map.removeLayer(gpsGroup);
+    };
+  }, [gpsPoints, isGpsMapping]);
 
   return (
     <div className="relative w-full h-full">
@@ -313,8 +366,8 @@ export function FarmRegistrationPanel() {
     searchCoords,
   } = useDashboardContext();
 
-  // View modes: "list" | "add-form" | "detail"
-  const [view, setView] = useState<"list" | "add-form" | "detail">("list");
+  // View modes
+  const [view, setView] = useState<"list" | "method-select" | "gps-map" | "add-form" | "detail">("list");
   const [analysisCache, setAnalysisCache] = useState<Record<string, any>>({});
   const [loadingFieldId, setLoadingFieldId] = useState<string | null>(null);
 
@@ -331,6 +384,13 @@ export function FarmRegistrationPanel() {
   const [formFarming, setFormFarming] = useState("");
   const [formStatus, setFormStatus] = useState<"sown" | "barren">("sown");
 
+  // GPS mapping state
+  const [gpsPoints, setGpsPoints] = useState<[number, number][]>([]);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number>(0);
+  const [gpsDistance, setGpsDistance] = useState<number>(0);
+  const [isGpsMapping, setIsGpsMapping] = useState(false);
+  const watchIdRef = useRef<number | null>(null);
+
   const center: [number, number] = searchCoords ?? [16.5, 80.6];
 
   const resetForm = () => {
@@ -339,6 +399,7 @@ export function FarmRegistrationPanel() {
     setFormFarmName(""); setFormCrop(""); setFormVariety("");
     setFormSowingDate(""); setFormIrrigation(""); setFormFarming("");
     setFormStatus("sown");
+    setGpsPoints([]); setGpsDistance(0); setGpsAccuracy(0);
   };
 
   const handlePolygonDrawn = (polygon: [number, number][], acres: number, village: string, district: string) => {
@@ -347,6 +408,91 @@ export function FarmRegistrationPanel() {
     setDetectedVillage(village);
     setDetectedDistrict(district);
   };
+
+  const handleGpsPointAdded = (newPt: [number, number]) => {
+    setGpsAccuracy(3.0); // Set mock good accuracy for simulated point
+    setGpsPoints((prev) => {
+      if (prev.length === 0) return [newPt];
+      const lastPt = prev[prev.length - 1];
+      const dist = haversineDistance(lastPt, newPt);
+      setGpsDistance((d) => d + dist);
+      return [...prev, newPt];
+    });
+  };
+
+  const startGpsMapping = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    setGpsPoints([]);
+    setGpsDistance(0);
+    setIsGpsMapping(true);
+    setView("gps-map");
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const acc = pos.coords.accuracy;
+        setGpsAccuracy(acc);
+        
+        // Ignore points with bad accuracy (>20m)
+        if (acc > 20) return;
+
+        const newPt: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        
+        setGpsPoints((prev) => {
+          if (prev.length === 0) return [newPt];
+          const lastPt = prev[prev.length - 1];
+          const dist = haversineDistance(lastPt, newPt);
+          
+          // Only record if moved > 3 meters to avoid noise
+          if (dist > 3) {
+            setGpsDistance(d => d + dist);
+            return [...prev, newPt];
+          }
+          return prev;
+        });
+      },
+      (err) => console.error("GPS Error:", err),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+    );
+  };
+
+  const stopGpsMapping = () => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    setIsGpsMapping(false);
+  };
+
+  const finishGpsMapping = async () => {
+    stopGpsMapping();
+    if (gpsPoints.length < 3) {
+      alert("Not enough points collected to form a boundary (minimum 3 required).");
+      return;
+    }
+    const acres = m2ToAcres(polygonAreaM2(gpsPoints));
+    
+    // Auto-detect village from first point
+    const firstPt = gpsPoints[0];
+    let village = "Unknown Village";
+    let district = "Unknown District";
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${firstPt[0]}&lon=${firstPt[1]}&format=json`, { headers: { "User-Agent": "AgriTwin/1.0" } });
+      const d = await r.json();
+      const addr = d.address || {};
+      village = addr.village || addr.town || addr.city || addr.suburb || village;
+      district = addr.county || addr.state_district || addr.district || district;
+    } catch {}
+
+    handlePolygonDrawn(gpsPoints, parseFloat(acres.toFixed(3)), village, district);
+    setView("add-form");
+  };
+
+  useEffect(() => {
+    return () => stopGpsMapping(); // Cleanup on unmount
+  }, []);
 
   const handleAddField = async () => {
     if (!formFarmName.trim() || drawnPolygon.length < 3) return;
@@ -367,9 +513,12 @@ export function FarmRegistrationPanel() {
     };
     
     try {
-      await fetch("http://127.0.0.1:8000/api/farmer-fields", {
+      await fetch("/api/farmer-fields", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("agritwin_token")}`
+        },
         body: JSON.stringify(newField)
       });
       const updated = [...registeredFields, { ...newField, createdAt: new Date().toISOString() } as RegisteredField];
@@ -392,9 +541,12 @@ export function FarmRegistrationPanel() {
     setDetecting(true);
     navigator.geolocation.getCurrentPosition(async (pos) => {
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/farmer-fields/detect-field", {
+        const res = await fetch("/api/farmer-fields/detect-field", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("agritwin_token")}`
+          },
           body: JSON.stringify({ lat: pos.coords.latitude, lon: pos.coords.longitude })
         });
         const data = await res.json();
@@ -422,7 +574,7 @@ export function FarmRegistrationPanel() {
     setLoadingFieldId(field.id);
     setFieldPolygonAnalysis(null);
     try {
-      const res = await fetch("http://127.0.0.1:8080/api/analysis/field-polygon", {
+      const res = await fetch("/api/analysis/field-polygon", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ polygon: field.polygon, land_status: status, village_name: field.villageName }),
@@ -451,7 +603,10 @@ export function FarmRegistrationPanel() {
 
   const handleDeleteField = async (id: string) => {
     try {
-      await fetch(`http://127.0.0.1:8000/api/farmer-fields/${id}`, { method: "DELETE" });
+      await fetch(`/api/farmer-fields/${id}`, { 
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${localStorage.getItem("agritwin_token")}` }
+      });
       const updated = registeredFields.filter(f => f.id !== id);
       setRegisteredFields(updated);
       if (activeField?.id === id) { setActiveField(null); setFieldPolygonAnalysis(null); }
@@ -479,7 +634,7 @@ export function FarmRegistrationPanel() {
                 {detecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />} Detect
               </button>
               <button
-                onClick={() => { resetForm(); setView("add-form"); }}
+                onClick={() => { resetForm(); setView("method-select"); }}
                 className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition"
               >
                 <Plus className="h-3.5 w-3.5" /> Add Field
@@ -546,12 +701,131 @@ export function FarmRegistrationPanel() {
       );
     }
 
+    // ── METHOD SELECT VIEW ────────────────────────────────────────────────
+    if (view === "method-select") {
+      return (
+        <div className="flex flex-col h-full">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+            <button onClick={() => setView("list")} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="font-bold text-sm text-gray-800">Register Farm</div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto px-5 py-6 flex flex-col gap-4">
+            <button
+              onClick={startGpsMapping}
+              className="flex flex-col items-center text-center p-6 border-2 border-emerald-500 bg-emerald-50 rounded-2xl hover:bg-emerald-100 transition shadow-sm group"
+            >
+              <div className="bg-emerald-100 text-emerald-600 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                <Footprints className="h-6 w-6" />
+              </div>
+              <div className="font-bold text-emerald-800 text-base mb-1">Walk Around My Farm</div>
+              <div className="text-xs text-emerald-600/80 mb-2 font-semibold tracking-wide uppercase">Recommended</div>
+              <div className="text-xs text-gray-600">Walk around the boundary of your farm while the application records your GPS location automatically.</div>
+            </button>
+
+            <button
+              onClick={() => setView("add-form")}
+              className="flex flex-col items-center text-center p-6 border border-gray-200 bg-gray-50 rounded-2xl hover:border-gray-300 hover:bg-gray-100 transition group"
+            >
+              <div className="bg-gray-200 text-gray-600 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                <Navigation className="h-6 w-6" />
+              </div>
+              <div className="font-bold text-gray-800 text-base mb-1">Draw Boundary on Map</div>
+              <div className="text-xs text-gray-500">Manually click 4 corners on the satellite map to define your farm boundary remotely.</div>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ── GPS MAPPING VIEW ──────────────────────────────────────────────────
+    if (view === "gps-map") {
+      const gpsAcres = m2ToAcres(polygonAreaM2(gpsPoints));
+      return (
+        <div className="flex flex-col h-full bg-emerald-900 text-white relative overflow-hidden">
+          {/* Animated Background */}
+          <div className="absolute inset-0 opacity-20 pointer-events-none">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(52,211,153,0.4)_0%,_transparent_70%)] animate-pulse-glow" />
+          </div>
+
+          <div className="flex items-center justify-between px-5 py-4 border-b border-emerald-800/50 relative z-10">
+            <div className="font-bold text-sm text-emerald-50 flex items-center gap-2">
+              <Satellite className="h-4 w-4 text-emerald-400" />
+              Live Boundary Mapping
+            </div>
+          </div>
+          
+          <div className="flex-1 flex flex-col justify-center px-6 space-y-8 relative z-10">
+            <div className="text-center">
+              <div className="text-[10px] text-emerald-300/70 font-semibold uppercase tracking-wider mb-1">Distance Walked</div>
+              <div className="text-5xl font-black text-white">{gpsDistance.toFixed(0)} <span className="text-xl text-emerald-400">m</span></div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-3 flex flex-col items-center justify-center backdrop-blur-md">
+                <div className="text-[9px] text-emerald-300/70 font-bold uppercase tracking-wider mb-0.5">Points Recorded</div>
+                <div className="text-lg font-bold text-emerald-100">{gpsPoints.length}</div>
+              </div>
+              <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-3 flex flex-col items-center justify-center backdrop-blur-md">
+                <div className="text-[9px] text-emerald-300/70 font-bold uppercase tracking-wider mb-0.5">Estimated Area</div>
+                <div className="text-lg font-bold text-emerald-100">{gpsPoints.length >= 3 ? gpsAcres.toFixed(2) : "---"} <span className="text-xs">Ac</span></div>
+              </div>
+            </div>
+            
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-2 mb-1">
+                <Focus className={`h-4 w-4 ${gpsAccuracy > 15 || gpsAccuracy === 0 ? 'text-amber-400' : 'text-emerald-400'}`} />
+                <span className={`text-xs font-semibold ${gpsAccuracy > 15 || gpsAccuracy === 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  GPS Accuracy: {gpsAccuracy === 0 ? "Unavailable (HTTP)" : `${gpsAccuracy.toFixed(1)}m`}
+                </span>
+              </div>
+              <div className="text-[10px] text-emerald-300/60 text-center max-w-[250px] leading-relaxed">
+                {gpsAccuracy === 0 ? (
+                  <span className="text-amber-300 font-medium">💡 Hint: Since location is blocked over HTTP, tap the satellite map directly to drop manual boundary corners!</span>
+                ) : (
+                  "Keep walking around the perimeter, or tap the map to drop pins manually."
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-4 border-t border-emerald-800/50 bg-emerald-950/80 backdrop-blur-md shrink-0 relative z-10">
+            {isGpsMapping ? (
+              <button
+                onClick={finishGpsMapping}
+                disabled={gpsPoints.length < 3}
+                className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-emerald-950 font-black rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+              >
+                <CheckCircle2 className="h-5 w-5" /> Finish Mapping
+              </button>
+            ) : (
+              <button
+                onClick={startGpsMapping}
+                className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+              >
+                <Play className="h-5 w-5 fill-current" /> Start Mapping
+              </button>
+            )}
+            
+            <button
+              onClick={() => { stopGpsMapping(); setView("method-select"); }}
+              className="w-full py-2.5 mt-2 bg-transparent text-emerald-300/80 hover:text-emerald-100 text-xs font-bold transition flex items-center justify-center"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     // ── ADD FIELD FORM ─────────────────────────────────────────────────────
     if (view === "add-form") {
       return (
         <div className="flex flex-col h-full">
           <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
-            <button onClick={() => { resetForm(); setView("list"); }} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition">
+            <button onClick={() => { resetForm(); setView("method-select"); }} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition">
               <ChevronLeft className="h-4 w-4" />
             </button>
             <div>
@@ -595,7 +869,16 @@ export function FarmRegistrationPanel() {
             </div>
 
             {/* Crop Name */}
-            <SelectField label="Crop Name" value={formCrop} onChange={setFormCrop} options={CROP_OPTIONS} placeholder="Search or select crop" />
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Crop Name</label>
+              <input
+                type="text"
+                value={formCrop}
+                onChange={e => setFormCrop(e.target.value)}
+                placeholder="Enter crop name"
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-emerald-500 focus:bg-white transition"
+              />
+            </div>
 
 
             {/* Sowing Date */}
@@ -625,17 +908,17 @@ export function FarmRegistrationPanel() {
               <div className="space-y-3">
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 space-y-1">
                   <div className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Field Boundary Drawn
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Field Boundary Ready
                   </div>
                   <div className="text-sm font-black text-emerald-600">{drawnAcres.toFixed(2)} Acres</div>
                   <div className="text-[10px] text-emerald-600">{detectedVillage} · {detectedDistrict}</div>
                 </div>
                 <button
                   type="button"
-                  onClick={resetForm}
+                  onClick={() => { resetForm(); setView("method-select"); }}
                   className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
                 >
-                  <Trash2 className="h-3.5 w-3.5" /> Clear & Re-draw
+                  <Trash2 className="h-3.5 w-3.5" /> Clear & Map Again
                 </button>
               </div>
             )}
@@ -667,7 +950,7 @@ export function FarmRegistrationPanel() {
     // ── FIELD DETAIL VIEW ──────────────────────────────────────────────────
     if (view === "detail" && activeField) {
       return (
-        <div className="flex flex-col h-full animate-in slide-in-from-right duration-200 w-[340px]">
+        <div className="flex flex-col h-full animate-in slide-in-from-right duration-200 w-full md:w-[340px]">
           <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
             <button onClick={() => setView("list")} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition">
               <ChevronLeft className="h-4 w-4" />
@@ -696,11 +979,11 @@ export function FarmRegistrationPanel() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-180px)] bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-140px)] md:h-[calc(100vh-180px)] bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
 
 
       {/* RIGHT — Satellite Map */}
-      <div className="flex-1 relative">
+      <div className="h-[250px] sm:h-[350px] md:h-full flex-none md:flex-1 relative">
         <Suspense fallback={
           <div className="w-full h-full bg-slate-900 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
@@ -710,33 +993,42 @@ export function FarmRegistrationPanel() {
             center={center}
             onPolygonDrawn={handlePolygonDrawn}
             existingFields={registeredFields}
-            isDrawing={view === "add-form"}
+            isDrawing={view === "add-form" && drawnPolygon.length === 0}
             drawnPolygon={drawnPolygon}
+            gpsPoints={gpsPoints}
+            isGpsMapping={isGpsMapping}
+            onGpsPointAdded={handleGpsPointAdded}
           />
         </Suspense>
 
         {/* Bottom bar like reference */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-2.5 flex items-center justify-between z-[1000]">
-          <button className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition">
+        <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-gray-200 px-3 py-2 flex items-center justify-between z-[1000] gap-2">
+          <button className="p-1 rounded-lg hover:bg-gray-100 text-gray-500 transition shrink-0">
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <div className="text-xs font-bold text-gray-600 flex items-center gap-2">
-            <Satellite className="h-3.5 w-3.5 text-emerald-600" />
-            {drawnPolygon.length >= 3
-              ? `Boundary drawn · ${drawnAcres.toFixed(2)} Acres · ${detectedVillage || "..."}`
-              : "Click 4 corners on the map to define your boundary"}
+          <div className="text-[10px] md:text-xs font-bold text-gray-600 flex items-center gap-1.5 min-w-0">
+            <Satellite className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+            <span className="truncate">
+              {drawnPolygon.length >= 3
+                ? `Boundary defined · ${drawnAcres.toFixed(2)} Ac`
+                : view === "gps-map"
+                  ? "Walk boundary to map"
+                  : view === "add-form"
+                    ? "Tap corners to define"
+                    : "Select a field to view"}
+            </span>
           </div>
           <button
-            onClick={() => { resetForm(); setView("add-form"); }}
-            className="flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-emerald-700 transition"
+            onClick={() => { resetForm(); setView("method-select"); }}
+            className="flex items-center gap-1 bg-emerald-600 text-white text-[10px] md:text-xs font-bold px-2.5 py-1.5 rounded-lg hover:bg-emerald-700 transition shrink-0"
           >
-            <Plus className="h-3.5 w-3.5" /> Add Field
+            <Plus className="h-3 w-3" /> Add
           </button>
         </div>
       </div>
 
       {/* MAIN PANEL (Right Side) */}
-      <div className={`${view === "detail" ? "w-[340px]" : "w-[300px]"} shrink-0 bg-white border-l border-gray-200 shadow-sm flex flex-col h-full z-10 transition-all duration-300 overflow-x-hidden`}>
+      <div className={`${view === "detail" ? "w-full md:w-[340px]" : "w-full md:w-[300px]"} flex-1 md:flex-initial bg-white border-t md:border-t-0 md:border-l border-gray-200 shadow-sm flex flex-col md:h-full z-10 transition-all duration-300 overflow-x-hidden min-h-0`}>
         {renderSidePanel()}
       </div>
     </div>

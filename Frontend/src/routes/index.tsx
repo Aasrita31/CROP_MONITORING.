@@ -32,6 +32,7 @@ import { SaviExplanationPanel } from "@/components/SaviExplanationPanel";
 import { FarmerAdvisorPanel } from "@/components/FarmerAdvisorPanel";
 import { FarmerVoiceAssistant } from "@/components/FarmerVoiceAssistant";
 import { FarmRegistrationPanel } from "@/components/FarmRegistrationPanel";
+import { WelcomeFarmSetup } from "@/components/WelcomeFarmSetup";
 
 const ApRiceBowlSection = lazy(() => import("@/components/ApRiceBowlComponents").then(m => ({ default: m.ApRiceBowlSection })));
 
@@ -48,9 +49,9 @@ const DashboardInteractiveMap = lazy(() => import("@/components/MapComponents").
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "🌿 FarmPulse — AI Precision Agriculture Digital Twin" },
+      { title: "🌿 AgriTwin Intelligence — AI Precision Agriculture Digital Twin" },
       { name: "description", content: "Live AI digital twin for crop health, disease detection, water stress and yield prediction across your farms." },
-      { property: "og:title", content: "🌿 FarmPulse Dashboard" },
+      { property: "og:title", content: "🌿 AgriTwin Intelligence Dashboard" },
       { property: "og:description", content: "AI-powered precision agriculture command center." },
     ],
   }),
@@ -252,7 +253,7 @@ function Dashboard() {
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const { farm, setFarm, crop, activeFarm, weatherData, nationalNdvi, dashboardMode, setDashboardMode } = useApp();
-  const { searchCoords, searchQuery, villageAnalysis, searchFields, activePanel, selectedDistrictId } = useDashboardContext();
+  const { searchCoords, searchQuery, villageAnalysis, searchFields, activePanel, selectedDistrictId, registeredFields } = useDashboardContext();
 
   const mapCenter = useMemo<[number, number]>(() => {
     if (searchCoords) return searchCoords;
@@ -304,6 +305,9 @@ function Dashboard() {
           {activePanel !== "Farm Registration & Fields" && <VillageSearchPanel />}
 
           {activePanel === "Village Monitoring" || activePanel === "Dashboard" ? (
+            (activePanel === "Dashboard" && registeredFields.length === 0) ? (
+              <WelcomeFarmSetup />
+            ) : (
             <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 space-y-6">
               <div className="h-[calc(100vh-290px)] w-full rounded-2xl overflow-hidden shadow-[var(--shadow-soft)] mb-6">
@@ -351,7 +355,7 @@ function Dashboard() {
               </div>
             </div>
           </section>
-          ) : activePanel === "AP Rice Bowl" ? (
+          )) : activePanel === "AP Rice Bowl" ? (
             <div className="animate-in fade-in duration-500">
               <ClientOnly>
                 <Suspense fallback={<div className="h-[400px] w-full flex items-center justify-center text-muted-foreground bg-card rounded-2xl border border-border">Loading AP Rice Bowl Intelligence...</div>}>
@@ -1533,7 +1537,7 @@ function AiAssistantDrawer({ onClose, farm, crop }: { onClose: () => void; farm:
     let stateId = "pb";
     if (farm === "Maharashtra Grape Orchards") stateId = "mh";
     else if (farm === "Vinh Long Estate") stateId = "vl";
-    fetch(`http://127.0.0.1:8000/api/ai/chat/${stateId}`)
+    fetch(`/api/ai/chat/${stateId}`)
       .then(r => r.json())
       .then(data => setMessages(data));
   }, [farm]);
@@ -1548,7 +1552,7 @@ function AiAssistantDrawer({ onClose, farm, crop }: { onClose: () => void; farm:
     if (farm === "Maharashtra Grape Orchards") stateId = "mh";
     else if (farm === "Vinh Long Estate") stateId = "vl";
 
-    fetch(`http://127.0.0.1:8000/api/ai/chat/${stateId}`, {
+    fetch(`/api/ai/chat/${stateId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: input })

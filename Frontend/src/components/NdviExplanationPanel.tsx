@@ -10,34 +10,38 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
   const defaultVillage = "Kadiyam";
   const displayVillage = villageName || defaultVillage;
 
-  const fallbackDate = "22 June 2026";
-  const fallbackProduct = "S2B_MSIL2A_20260622";
+  const hasData = !!villageAnalysis;
+
+  // Use real values from Copernicus backend if available, otherwise null
+  const red = hasData ? villageAnalysis.b4 : null;
+  const nir = hasData ? villageAnalysis.b8 : null;
+  const ndviRaw = hasData ? villageAnalysis.ndvi : null;
+  const ndvi = ndviRaw !== null ? parseFloat(ndviRaw.toFixed(2)) : null;
   
-  // Use real values from Copernicus backend if available, otherwise fallback
-  const red = villageAnalysis?.b4 ?? 0.18;
-  const nir = villageAnalysis?.b8 ?? 0.72;
-  const ndviRaw = villageAnalysis?.ndvi ?? ((nir - red) / (nir + red));
-  const ndvi = parseFloat(ndviRaw.toFixed(2));
-  
-  const status = ndvi >= 0.6 ? "Healthy" : ndvi >= 0.4 ? "Moderate Stress" : "Poor Health";
-  const desc = ndvi >= 0.6 
-    ? "Your crop is growing normally and vegetation density is good." 
-    : ndvi >= 0.4 
-      ? "Vegetation is showing signs of water stress or early decline." 
-      : "Sparse vegetation or severe stress detected in satellite imagery.";
-  const action = ndvi >= 0.6 
-    ? "Continue current management practices." 
-    : ndvi >= 0.4 
-      ? "Increase irrigation and monitor closely." 
-      : "Immediate field inspection required to identify the issue.";
+  const status = !hasData ? "Awaiting Data" : ndvi >= 0.6 ? "Healthy" : ndvi >= 0.4 ? "Moderate Stress" : "Poor Health";
+  const desc = !hasData 
+    ? "Search and select a village to analyze crop health."
+    : ndvi >= 0.6 
+      ? "Your crop is growing normally and vegetation density is good." 
+      : ndvi >= 0.4 
+        ? "Vegetation is showing signs of water stress or early decline." 
+        : "Sparse vegetation or severe stress detected in satellite imagery.";
+  const action = !hasData 
+    ? "Initiate a satellite scan to retrieve NDVI."
+    : ndvi >= 0.6 
+      ? "Continue current management practices." 
+      : ndvi >= 0.4 
+        ? "Increase irrigation and monitor closely." 
+        : "Immediate field inspection required to identify the issue.";
       
-  const date = villageAnalysis?.captureDate ?? fallbackDate;
-  const product = villageAnalysis?.copernicusMetadata?.productName ?? fallbackProduct;
+  const date = hasData ? villageAnalysis.captureDate : "---";
+  const product = hasData && villageAnalysis.copernicusMetadata ? villageAnalysis.copernicusMetadata.productName : "---";
 
   const data = { red, nir, status, desc, action, date, product };
 
   // Determine colors based on NDVI
-  const getColor = (val: number) => {
+  const getColor = (val: number | null) => {
+    if (val === null) return "bg-slate-500 text-slate-50";
     if (val >= 0.8) return "bg-emerald-600 text-emerald-50";
     if (val >= 0.6) return "bg-green-500 text-green-50";
     if (val >= 0.4) return "bg-yellow-500 text-yellow-50";
@@ -158,11 +162,11 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-center">
               <div className="text-xs font-bold text-red-500 uppercase tracking-wider mb-1">Band 4 (Red)</div>
-              <div className="text-3xl font-black text-red-600 font-mono">{data.red.toFixed(2)}</div>
+              <div className="text-3xl font-black text-red-600 font-mono">{data.red !== null ? data.red.toFixed(2) : "---"}</div>
             </div>
             <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 text-center">
               <div className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-1">Band 8 (NIR)</div>
-              <div className="text-3xl font-black text-purple-700 font-mono">{data.nir.toFixed(2)}</div>
+              <div className="text-3xl font-black text-purple-700 font-mono">{data.nir !== null ? data.nir.toFixed(2) : "---"}</div>
             </div>
           </div>
         </section>
@@ -195,21 +199,23 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
           <div className="flex items-center gap-4 text-2xl bg-slate-800/80 p-6 rounded-xl border border-slate-700 backdrop-blur-sm transition-all duration-500">
             <div className="font-bold text-emerald-400">NDVI</div>
             <div>=</div>
-            {calcStep === 0 ? (
+            {!hasData ? (
+              <div className="text-slate-500 font-bold">---</div>
+            ) : calcStep === 0 ? (
               <div className="text-slate-500 animate-pulse">Calculating...</div>
             ) : calcStep === 1 || calcStep === 2 ? (
               <div className="flex flex-col items-center animate-in fade-in zoom-in">
-                <div className="border-b-2 border-slate-500 pb-2 px-4">(<span className="text-purple-400">{data.nir.toFixed(2)}</span> - <span className="text-red-400">{data.red.toFixed(2)}</span>)</div>
-                <div className="pt-2 px-4">(<span className="text-purple-400">{data.nir.toFixed(2)}</span> + <span className="text-red-400">{data.red.toFixed(2)}</span>)</div>
+                <div className="border-b-2 border-slate-500 pb-2 px-4">(<span className="text-purple-400">{data.nir!.toFixed(2)}</span> - <span className="text-red-400">{data.red!.toFixed(2)}</span>)</div>
+                <div className="pt-2 px-4">(<span className="text-purple-400">{data.nir!.toFixed(2)}</span> + <span className="text-red-400">{data.red!.toFixed(2)}</span>)</div>
               </div>
             ) : calcStep === 3 ? (
               <div className="flex flex-col items-center animate-in fade-in zoom-in">
-                <div className="border-b-2 border-slate-500 pb-2 px-4">{(data.nir - data.red).toFixed(2)}</div>
-                <div className="pt-2 px-4">{(data.nir + data.red).toFixed(2)}</div>
+                <div className="border-b-2 border-slate-500 pb-2 px-4">{(data.nir! - data.red!).toFixed(2)}</div>
+                <div className="pt-2 px-4">{(data.nir! + data.red!).toFixed(2)}</div>
               </div>
             ) : (
-              <div className={`font-black text-4xl animate-in fade-in zoom-in ${getTextColor(ndvi)} drop-shadow-md`}>
-                {ndvi.toFixed(2)}
+              <div className={`font-black text-4xl animate-in fade-in zoom-in ${getTextColor(ndvi!)} drop-shadow-md`}>
+                {ndvi!.toFixed(2)}
               </div>
             )}
           </div>
@@ -240,15 +246,17 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
             <div className="absolute top-20 left-full text-[10px] text-slate-400 -translate-x-1/2">Excellent</div>
 
             {/* Current Value Indicator */}
-            <div 
-              className="absolute top-4 -mt-1 flex flex-col items-center transition-all duration-1000 ease-out"
-              style={{ left: `${Math.max(0, Math.min(100, ndvi * 100))}%`, transform: 'translateX(-50%)' }}
-            >
-              <div className="bg-slate-800 text-white text-xs font-bold py-1 px-2 rounded shadow-lg whitespace-nowrap mb-1">
-                {displayVillage}: {ndvi.toFixed(2)}
+            {hasData && (
+              <div 
+                className="absolute top-4 -mt-1 flex flex-col items-center transition-all duration-1000 ease-out"
+                style={{ left: `${Math.max(0, Math.min(100, ndvi! * 100))}%`, transform: 'translateX(-50%)' }}
+              >
+                <div className="bg-slate-800 text-white text-xs font-bold py-1 px-2 rounded shadow-lg whitespace-nowrap mb-1">
+                  {displayVillage}: {ndvi!.toFixed(2)}
+                </div>
+                <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-slate-800"></div>
               </div>
-              <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-slate-800"></div>
-            </div>
+            )}
           </div>
         </section>
 
@@ -257,7 +265,9 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
           <h2 className="text-xl font-bold mb-4 w-full text-left text-slate-800">Crop Canopy Condition</h2>
           
           <div className="flex items-center justify-center h-32 w-full">
-            {ndvi >= 0.75 ? (
+            {!hasData ? (
+              <div className="text-slate-400 font-bold text-sm">Select a village to view canopy condition</div>
+            ) : ndvi! >= 0.75 ? (
               <div className="flex flex-col items-center animate-in zoom-in duration-500">
                 <div className="relative">
                    <Leaf className="h-20 w-20 text-emerald-600 drop-shadow-md" fill="currentColor" />
@@ -265,7 +275,7 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
                 </div>
                 <div className="mt-4 font-bold text-emerald-700">Healthy Dense Canopy</div>
               </div>
-            ) : ndvi >= 0.4 ? (
+            ) : ndvi! >= 0.4 ? (
               <div className="flex flex-col items-center animate-in zoom-in duration-500">
                 <Leaf className="h-16 w-16 text-yellow-500 drop-shadow-sm" fill="currentColor" opacity={0.8} />
                 <div className="mt-4 font-bold text-yellow-700">Moderate Canopy (Yellowing)</div>

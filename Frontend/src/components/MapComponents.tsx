@@ -265,7 +265,7 @@ export function DashboardInteractiveMap({
 
     try {
       const analysisRes = await fetch(
-        `http://127.0.0.1:8000/api/analysis/village?name=${encodeURIComponent(name)}&latitude=${lat}&longitude=${lon}`,
+        `/api/analysis/village?name=${encodeURIComponent(name)}&latitude=${lat}&longitude=${lon}`,
       );
       const analysisData = analysisRes.ok ? await analysisRes.json() : null;
 

@@ -273,7 +273,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           .catch((err) => console.error("Error linking context data:", err));
 
         // Fetch Weather data
-        fetch(`http://127.0.0.1:8000/api/weather/${districtId}`)
+        fetch(`/api/weather/${districtId}`)
           .then(r => r.json())
           .then(data => {
             if (data.forecast) {

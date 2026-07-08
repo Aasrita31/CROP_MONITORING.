@@ -20,29 +20,30 @@ class FarmerCreateRequest(BaseModel):
     district: str = None
     gender: str = None
 
-# In a real app, this would be a dependency getting the logged-in user
-# For now, we'll use a single static farmer ID or create one if it doesn't exist
-DEMO_FARMER_ID = "farmer-123"
+from app.auth.security import get_current_user
+from app.models.user import User
 
-def get_demo_farmer(db: Session):
-    farmer = db.query(Farmer).filter(Farmer.id == DEMO_FARMER_ID).first()
+def get_farmer_for_user(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    farmer = db.query(Farmer).filter(Farmer.id == str(user.id)).first()
     if not farmer:
+        profile = user.profile
         farmer = Farmer(
-            id=DEMO_FARMER_ID, 
-            name="Demo Farmer", 
-            phone="1234567890",
-            aadhaar="123456789012",
-            address="Marlapudi village, Movva mandal",
-            district="Krishna",
-            gender="Male"
+            id=str(user.id),
+            user_id=user.id,
+            name=profile.full_name if profile else "Farmer",
+            email=user.email,
+            phone=user.phone,
+            village=profile.village if profile else None,
+            district=profile.district if profile else None,
+            state=profile.state if profile else None
         )
         db.add(farmer)
         db.commit()
+        db.refresh(farmer)
     return farmer
 
 @router.get("", response_model=List[Dict[str, Any]])
-def get_fields(db: Session = Depends(get_db)):
-    farmer = get_demo_farmer(db)
+def get_fields(farmer: Farmer = Depends(get_farmer_for_user), db: Session = Depends(get_db)):
     fields = db.query(FarmerField).filter(FarmerField.farmer_id == farmer.id).all()
     
     result = []
@@ -67,9 +68,7 @@ def get_fields(db: Session = Depends(get_db)):
     return result
 
 @router.post("")
-def create_field(payload: Dict[str, Any], db: Session = Depends(get_db)):
-    farmer = get_demo_farmer(db)
-    
+def create_field(payload: Dict[str, Any], farmer: Farmer = Depends(get_farmer_for_user), db: Session = Depends(get_db)):
     polygon = payload.get("polygon")
     centroid = geometry_service.calculate_centroid(polygon) if polygon else None
     
@@ -98,13 +97,12 @@ def create_field(payload: Dict[str, Any], db: Session = Depends(get_db)):
     return {"message": "Field created successfully", "id": field.id}
 
 @router.post("/detect-field")
-def detect_field(payload: Dict[str, float] = Body(...), db: Session = Depends(get_db)):
+def detect_field(payload: Dict[str, float] = Body(...), farmer: Farmer = Depends(get_farmer_for_user), db: Session = Depends(get_db)):
     lat = payload.get("lat")
     lon = payload.get("lon")
     if lat is None or lon is None:
         raise HTTPException(status_code=400, detail="Missing lat or lon")
         
-    farmer = get_demo_farmer(db)
     fields = db.query(FarmerField).filter(FarmerField.farmer_id == farmer.id).all()
     
     for f in fields:

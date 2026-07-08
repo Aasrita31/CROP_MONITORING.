@@ -62,7 +62,7 @@ export function FarmerVoiceAssistant() {
         villageAnalysis.savi ?? 0
       );
       
-      const audioUrl = `http://127.0.0.1:8000/api/tts?text=${encodeURIComponent(text)}&lang=te`;
+      const audioUrl = `/api/tts?text=${encodeURIComponent(text)}&lang=te`;
       const newAudio = new Audio(audioUrl);
       newAudio.playbackRate = 1.25;
       

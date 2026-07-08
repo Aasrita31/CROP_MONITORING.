@@ -7,17 +7,28 @@ from app.database.database import engine, Base, SessionLocal
 from app.database.seeder import seed_data
 import app.models
 from app.routers import district, village, field, satellite, ndvi, health, dashboard, ml, tts, farmer_fields, farm_analytics
+from app.routers import auth as auth_router
+from app.routers import profile as profile_router
+from app.routers import community as community_router
+from app.routers import leaderboard as leaderboard_router
+from app.routers import notifications as notifications_router
 
 app = FastAPI(
-    title="Andhra Pradesh Paddy Crop Monitoring Platform API",
-    description="Scalable FastAPI digital twin backend for paddy crop monitoring in AP",
-    version="2.0.0"
+    title="AgriTwin Intelligence Platform API",
+    description="Scalable FastAPI digital twin backend with authentication, farmer identity, and community features",
+    version="3.0.0"
 )
 
-# CORS Middleware Setup
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:3000", "http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://10.26.86.228:8080",
+    ],
+    allow_origin_regex="https://.*\\.ngrok-free\\.(dev|app)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,6 +65,13 @@ app.include_router(ml.router, prefix="/api")
 app.include_router(tts.router, prefix="/api")
 app.include_router(farmer_fields.router, prefix="/api")
 app.include_router(farm_analytics.router, prefix="/api")
+
+# New: Auth, Profile, Community, Leaderboard, Notifications
+app.include_router(auth_router.router, prefix="/api")
+app.include_router(profile_router.router, prefix="/api")
+app.include_router(community_router.router, prefix="/api")
+app.include_router(leaderboard_router.router, prefix="/api")
+app.include_router(notifications_router.router, prefix="/api")
 
 # ------------------------------------------------------------------
 # Weather & AI Assistant Backwards Compatibility Endpoints

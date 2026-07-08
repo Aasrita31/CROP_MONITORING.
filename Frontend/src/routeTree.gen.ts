@@ -12,15 +12,24 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as YieldPredictionRouteImport } from './routes/yield-prediction'
 import { Route as WeatherIntelligenceRouteImport } from './routes/weather-intelligence'
 import { Route as WaterManagementRouteImport } from './routes/water-management'
+import { Route as VillageDashboardRouteImport } from './routes/village-dashboard'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PestMonitoringRouteImport } from './routes/pest-monitoring'
 import { Route as NutrientAnalysisRouteImport } from './routes/nutrient-analysis'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as LiveMonitoringRouteImport } from './routes/live-monitoring'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as LandingRouteImport } from './routes/landing'
 import { Route as HarvestPlannerRouteImport } from './routes/harvest-planner'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FarmOverviewRouteImport } from './routes/farm-overview'
 import { Route as DroneMonitoringRouteImport } from './routes/drone-monitoring'
 import { Route as DiseaseDetectionRouteImport } from './routes/disease-detection'
+import { Route as CommunityFarmsRouteImport } from './routes/community-farms'
 import { Route as AiCropDoctorRouteImport } from './routes/ai-crop-doctor'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -39,14 +48,34 @@ const WaterManagementRoute = WaterManagementRouteImport.update({
   path: '/water-management',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VillageDashboardRoute = VillageDashboardRouteImport.update({
+  id: '/village-dashboard',
+  path: '/village-dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportsRoute = ReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PestMonitoringRoute = PestMonitoringRouteImport.update({
@@ -59,14 +88,34 @@ const NutrientAnalysisRoute = NutrientAnalysisRouteImport.update({
   path: '/nutrient-analysis',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LiveMonitoringRoute = LiveMonitoringRouteImport.update({
   id: '/live-monitoring',
   path: '/live-monitoring',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LandingRoute = LandingRouteImport.update({
+  id: '/landing',
+  path: '/landing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HarvestPlannerRoute = HarvestPlannerRouteImport.update({
   id: '/harvest-planner',
   path: '/harvest-planner',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FarmOverviewRoute = FarmOverviewRouteImport.update({
@@ -84,6 +133,11 @@ const DiseaseDetectionRoute = DiseaseDetectionRouteImport.update({
   path: '/disease-detection',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommunityFarmsRoute = CommunityFarmsRouteImport.update({
+  id: '/community-farms',
+  path: '/community-farms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AiCropDoctorRoute = AiCropDoctorRouteImport.update({
   id: '/ai-crop-doctor',
   path: '/ai-crop-doctor',
@@ -98,15 +152,24 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-crop-doctor': typeof AiCropDoctorRoute
+  '/community-farms': typeof CommunityFarmsRoute
   '/disease-detection': typeof DiseaseDetectionRoute
   '/drone-monitoring': typeof DroneMonitoringRoute
   '/farm-overview': typeof FarmOverviewRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/harvest-planner': typeof HarvestPlannerRoute
+  '/landing': typeof LandingRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/live-monitoring': typeof LiveMonitoringRoute
+  '/login': typeof LoginRoute
   '/nutrient-analysis': typeof NutrientAnalysisRoute
   '/pest-monitoring': typeof PestMonitoringRoute
+  '/profile': typeof ProfileRoute
+  '/register': typeof RegisterRoute
   '/reports': typeof ReportsRoute
+  '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
+  '/village-dashboard': typeof VillageDashboardRoute
   '/water-management': typeof WaterManagementRoute
   '/weather-intelligence': typeof WeatherIntelligenceRoute
   '/yield-prediction': typeof YieldPredictionRoute
@@ -114,15 +177,24 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-crop-doctor': typeof AiCropDoctorRoute
+  '/community-farms': typeof CommunityFarmsRoute
   '/disease-detection': typeof DiseaseDetectionRoute
   '/drone-monitoring': typeof DroneMonitoringRoute
   '/farm-overview': typeof FarmOverviewRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/harvest-planner': typeof HarvestPlannerRoute
+  '/landing': typeof LandingRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/live-monitoring': typeof LiveMonitoringRoute
+  '/login': typeof LoginRoute
   '/nutrient-analysis': typeof NutrientAnalysisRoute
   '/pest-monitoring': typeof PestMonitoringRoute
+  '/profile': typeof ProfileRoute
+  '/register': typeof RegisterRoute
   '/reports': typeof ReportsRoute
+  '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
+  '/village-dashboard': typeof VillageDashboardRoute
   '/water-management': typeof WaterManagementRoute
   '/weather-intelligence': typeof WeatherIntelligenceRoute
   '/yield-prediction': typeof YieldPredictionRoute
@@ -131,15 +203,24 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ai-crop-doctor': typeof AiCropDoctorRoute
+  '/community-farms': typeof CommunityFarmsRoute
   '/disease-detection': typeof DiseaseDetectionRoute
   '/drone-monitoring': typeof DroneMonitoringRoute
   '/farm-overview': typeof FarmOverviewRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/harvest-planner': typeof HarvestPlannerRoute
+  '/landing': typeof LandingRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/live-monitoring': typeof LiveMonitoringRoute
+  '/login': typeof LoginRoute
   '/nutrient-analysis': typeof NutrientAnalysisRoute
   '/pest-monitoring': typeof PestMonitoringRoute
+  '/profile': typeof ProfileRoute
+  '/register': typeof RegisterRoute
   '/reports': typeof ReportsRoute
+  '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
+  '/village-dashboard': typeof VillageDashboardRoute
   '/water-management': typeof WaterManagementRoute
   '/weather-intelligence': typeof WeatherIntelligenceRoute
   '/yield-prediction': typeof YieldPredictionRoute
@@ -149,15 +230,24 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ai-crop-doctor'
+    | '/community-farms'
     | '/disease-detection'
     | '/drone-monitoring'
     | '/farm-overview'
+    | '/forgot-password'
     | '/harvest-planner'
+    | '/landing'
+    | '/leaderboard'
     | '/live-monitoring'
+    | '/login'
     | '/nutrient-analysis'
     | '/pest-monitoring'
+    | '/profile'
+    | '/register'
     | '/reports'
+    | '/search'
     | '/settings'
+    | '/village-dashboard'
     | '/water-management'
     | '/weather-intelligence'
     | '/yield-prediction'
@@ -165,15 +255,24 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ai-crop-doctor'
+    | '/community-farms'
     | '/disease-detection'
     | '/drone-monitoring'
     | '/farm-overview'
+    | '/forgot-password'
     | '/harvest-planner'
+    | '/landing'
+    | '/leaderboard'
     | '/live-monitoring'
+    | '/login'
     | '/nutrient-analysis'
     | '/pest-monitoring'
+    | '/profile'
+    | '/register'
     | '/reports'
+    | '/search'
     | '/settings'
+    | '/village-dashboard'
     | '/water-management'
     | '/weather-intelligence'
     | '/yield-prediction'
@@ -181,15 +280,24 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ai-crop-doctor'
+    | '/community-farms'
     | '/disease-detection'
     | '/drone-monitoring'
     | '/farm-overview'
+    | '/forgot-password'
     | '/harvest-planner'
+    | '/landing'
+    | '/leaderboard'
     | '/live-monitoring'
+    | '/login'
     | '/nutrient-analysis'
     | '/pest-monitoring'
+    | '/profile'
+    | '/register'
     | '/reports'
+    | '/search'
     | '/settings'
+    | '/village-dashboard'
     | '/water-management'
     | '/weather-intelligence'
     | '/yield-prediction'
@@ -198,15 +306,24 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiCropDoctorRoute: typeof AiCropDoctorRoute
+  CommunityFarmsRoute: typeof CommunityFarmsRoute
   DiseaseDetectionRoute: typeof DiseaseDetectionRoute
   DroneMonitoringRoute: typeof DroneMonitoringRoute
   FarmOverviewRoute: typeof FarmOverviewRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   HarvestPlannerRoute: typeof HarvestPlannerRoute
+  LandingRoute: typeof LandingRoute
+  LeaderboardRoute: typeof LeaderboardRoute
   LiveMonitoringRoute: typeof LiveMonitoringRoute
+  LoginRoute: typeof LoginRoute
   NutrientAnalysisRoute: typeof NutrientAnalysisRoute
   PestMonitoringRoute: typeof PestMonitoringRoute
+  ProfileRoute: typeof ProfileRoute
+  RegisterRoute: typeof RegisterRoute
   ReportsRoute: typeof ReportsRoute
+  SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
+  VillageDashboardRoute: typeof VillageDashboardRoute
   WaterManagementRoute: typeof WaterManagementRoute
   WeatherIntelligenceRoute: typeof WeatherIntelligenceRoute
   YieldPredictionRoute: typeof YieldPredictionRoute
@@ -235,6 +352,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WaterManagementRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/village-dashboard': {
+      id: '/village-dashboard'
+      path: '/village-dashboard'
+      fullPath: '/village-dashboard'
+      preLoaderRoute: typeof VillageDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -242,11 +366,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reports': {
       id: '/reports'
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pest-monitoring': {
@@ -263,6 +408,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NutrientAnalysisRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/live-monitoring': {
       id: '/live-monitoring'
       path: '/live-monitoring'
@@ -270,11 +422,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LiveMonitoringRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/landing': {
+      id: '/landing'
+      path: '/landing'
+      fullPath: '/landing'
+      preLoaderRoute: typeof LandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/harvest-planner': {
       id: '/harvest-planner'
       path: '/harvest-planner'
       fullPath: '/harvest-planner'
       preLoaderRoute: typeof HarvestPlannerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/farm-overview': {
@@ -298,6 +471,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DiseaseDetectionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/community-farms': {
+      id: '/community-farms'
+      path: '/community-farms'
+      fullPath: '/community-farms'
+      preLoaderRoute: typeof CommunityFarmsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ai-crop-doctor': {
       id: '/ai-crop-doctor'
       path: '/ai-crop-doctor'
@@ -318,15 +498,24 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiCropDoctorRoute: AiCropDoctorRoute,
+  CommunityFarmsRoute: CommunityFarmsRoute,
   DiseaseDetectionRoute: DiseaseDetectionRoute,
   DroneMonitoringRoute: DroneMonitoringRoute,
   FarmOverviewRoute: FarmOverviewRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   HarvestPlannerRoute: HarvestPlannerRoute,
+  LandingRoute: LandingRoute,
+  LeaderboardRoute: LeaderboardRoute,
   LiveMonitoringRoute: LiveMonitoringRoute,
+  LoginRoute: LoginRoute,
   NutrientAnalysisRoute: NutrientAnalysisRoute,
   PestMonitoringRoute: PestMonitoringRoute,
+  ProfileRoute: ProfileRoute,
+  RegisterRoute: RegisterRoute,
   ReportsRoute: ReportsRoute,
+  SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
+  VillageDashboardRoute: VillageDashboardRoute,
   WaterManagementRoute: WaterManagementRoute,
   WeatherIntelligenceRoute: WeatherIntelligenceRoute,
   YieldPredictionRoute: YieldPredictionRoute,

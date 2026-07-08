@@ -56,11 +56,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch fields on mount
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/farmer-fields")
+    const token = localStorage.getItem("agritwin_token");
+    fetch("/api/farmer-fields", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
       .then(res => res.json())
       .then(data => {
-        _setRegisteredFields(data);
-        if (data.length > 0) setActiveField(data[0]);
+        if (Array.isArray(data)) {
+          _setRegisteredFields(data);
+          if (data.length > 0) setActiveField(data[0]);
+        }
       })
       .catch(console.error);
   }, []);
