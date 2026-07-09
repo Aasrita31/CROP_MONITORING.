@@ -89,19 +89,90 @@ WEATHER_DAYS = [
 
 @app.get("/api/weather/{location}", tags=["Weather"])
 def get_weather(location: str):
+    import requests
+    import datetime
+
     # Map district ID or name to weather data
-    loc_name = "Vijayawada Region"
-    if location == "1":
+    loc_name = "Tirupati Region"
+    lat, lon = 13.6288, 79.4192 # default: Tirupati
+    
+    loc_lower = location.lower()
+    if "east godavari" in loc_lower or location == "1":
         loc_name = "East Godavari"
-    elif location == "2":
+        lat, lon = 16.9200, 81.8500
+    elif "west godavari" in loc_lower or location == "2":
         loc_name = "West Godavari"
-    elif location == "3":
+        lat, lon = 16.8200, 81.2500
+    elif "krishna" in loc_lower or location == "3":
         loc_name = "Krishna"
-    elif location == "4":
+        lat, lon = 16.4300, 80.9900
+    elif "konaseema" in loc_lower or location == "4":
         loc_name = "Konaseema"
-    elif location == "5":
+        lat, lon = 16.5900, 81.8700
+    elif "nellore" in loc_lower or location == "5":
         loc_name = "Nellore"
-        
+        lat, lon = 14.4455, 79.9865
+    else:
+        loc_name = location.title()
+
+    try:
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto"
+        res = requests.get(url, timeout=4)
+        if res.status_code == 200:
+            data = res.json()
+            current_data = data.get("current", {})
+            daily_data = data.get("daily", {})
+
+            # Map daily forecast to match frontend structure
+            forecast_days = []
+            days_of_week = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            for idx in range(min(7, len(daily_data.get("time", [])))):
+                date_str = daily_data["time"][idx]
+                try:
+                    dt = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+                    day_name = dt.strftime("%a")
+                    if idx == 0:
+                        day_name = "Today"
+                except:
+                    day_name = days_of_week[idx % 7]
+                
+                temp_max = daily_data["temperature_2m_max"][idx]
+                precip_prob = daily_data.get("precipitation_probability_max", [0]*7)[idx]
+                
+                # Determine icon and label based on precipitation probability
+                if precip_prob > 60:
+                    icon = "CloudRain"
+                    label = "Rainy"
+                elif precip_prob > 25:
+                    icon = "CloudSun"
+                    label = "Mostly Cloudy"
+                else:
+                    icon = "Sun"
+                    label = "Sunny"
+                    
+                forecast_days.append({
+                    "d": day_name,
+                    "t": int(temp_max),
+                    "icon": icon,
+                    "label": label,
+                    "rain": int(precip_prob)
+                })
+
+            current_temp = current_data.get("temperature_2m", 31.0)
+            return {
+                "forecast": forecast_days,
+                "current": {
+                    "wind": f"{current_data.get('wind_speed_10m', 12.0)} km/h",
+                    "humidity": f"{current_data.get('relative_humidity_2m', 68.0)}%",
+                    "soilTemp": f"{round(current_temp - 2.5)}°C",
+                    "location": loc_name,
+                    "temp": f"{current_temp}°C"
+                }
+            }
+    except Exception as e:
+        print("Open-Meteo fetch failed, falling back to static weather:", e)
+
+    # Fallback to hardcoded mock weather in case of connection failure
     return {
         "forecast": WEATHER_DAYS,
         "current": {

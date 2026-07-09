@@ -16,6 +16,7 @@ export function useVillageSearch() {
   const {
     setSearchCoords,
     setSearchQuery,
+    setSearchDistrict,
     setVillageAnalysis,
     setSelectedVillageId,
     setSelectedDistrictId,
@@ -87,6 +88,7 @@ export function useVillageSearch() {
 
       setSearchCoords(coords);
       setSearchQuery(villageLabel);
+      setSearchDistrict(searchData.district);
       setVillageAnalysis(enrichedAnalysis);
       setSearchFields(realFields);
 

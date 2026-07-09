@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query as FQuery
 from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.models.village import Village
@@ -9,13 +9,100 @@ from app.schemas.response_models import (
     VillageSearchResponse, VillageAnalysisResult
 )
 from app.services.sentinel_service import SentinelService
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import requests
 import numpy as np
+import math
 
 router = APIRouter(prefix="/villages", tags=["Villages"])
 search_router = APIRouter(prefix="/village", tags=["Village Search"])
 analysis_router = APIRouter(prefix="/analysis", tags=["Analysis"])
+
+
+@router.get("/nearby")
+def get_nearby_villages(
+    lat: float = FQuery(...),
+    lon: float = FQuery(...),
+    radius_km: float = FQuery(default=15),
+):
+    """
+    Find neighbouring villages around the given coordinates using
+    Nominatim reverse geocoding at multiple offset points.
+    Returns a list of { name, lat, lon, boundingbox } for map rendering.
+    """
+    seen_names: set = set()
+    results: list = []
+
+    # Generate a grid of offset points around the centre
+    offsets_deg = []
+    step_deg = radius_km / 111.0  # ~111 km per degree
+    for dlat in [-step_deg, -step_deg / 2, 0, step_deg / 2, step_deg]:
+        for dlon in [-step_deg, -step_deg / 2, 0, step_deg / 2, step_deg]:
+            if dlat == 0 and dlon == 0:
+                continue  # skip the centre (that's the searched village itself)
+            offsets_deg.append((dlat, dlon))
+
+    headers = {"User-Agent": "AgriTwin-Crop-Monitor/1.0"}
+    import time
+
+    for dlat, dlon in offsets_deg:
+        probe_lat = lat + dlat
+        probe_lon = lon + dlon
+        try:
+            url = (
+                f"https://nominatim.openstreetmap.org/reverse?"
+                f"format=json&lat={probe_lat}&lon={probe_lon}"
+                f"&zoom=14&addressdetails=1"
+            )
+            res = requests.get(url, headers=headers, timeout=4)
+            if res.status_code != 200:
+                continue
+            data = res.json()
+            addr = data.get("address", {})
+            village_name = (
+                addr.get("village")
+                or addr.get("town")
+                or addr.get("suburb")
+                or addr.get("hamlet")
+            )
+            if not village_name or village_name.lower() in seen_names:
+                continue
+
+            seen_names.add(village_name.lower())
+
+            v_lat = float(data.get("lat", probe_lat))
+            v_lon = float(data.get("lon", probe_lon))
+            raw_bb = data.get("boundingbox", [])
+
+            if raw_bb and len(raw_bb) == 4:
+                bb = [float(x) for x in raw_bb]
+            else:
+                # Fallback: create a small bounding box (~1km)
+                d = 0.005
+                bb = [v_lat - d, v_lat + d, v_lon - d, v_lon + d]
+
+            results.append({
+                "name": village_name,
+                "lat": v_lat,
+                "lon": v_lon,
+                "boundingbox": bb,  # [minLat, maxLat, minLon, maxLon]
+                "district": addr.get("county") or addr.get("state_district") or "",
+                "state": addr.get("state") or "",
+            })
+
+            # Respect Nominatim rate limit (1 req/sec for free tier)
+            time.sleep(0.15)
+
+        except Exception as e:
+            print(f"Nominatim nearby probe failed at ({probe_lat:.4f}, {probe_lon:.4f}): {e}")
+            continue
+
+        # Limit to max 12 villages
+        if len(results) >= 12:
+            break
+
+    return results
+
 
 @router.get("", response_model=List[VillageBase])
 def get_villages(db: Session = Depends(get_db)):

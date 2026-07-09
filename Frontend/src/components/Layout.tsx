@@ -13,6 +13,7 @@ import { AiAssistantDrawer } from "@/components/AiAssistantDrawer";
 import { AddFieldModal } from "@/components/AddFieldModal";
 import { useAuthStore } from "@/stores/authStore";
 import navavishkarLogo from "@/assets/navaviskar.png";
+import { ThemeToggle } from "./ThemeToggle";
 
 /* ---------------- Sidebar Data ---------------- */
 const SIDEBAR_GROUPS = [
@@ -27,6 +28,7 @@ const SIDEBAR_GROUPS = [
     items: [
       { label: "Village Monitoring",   icon: Grid3x3   },
       { label: "AP Rice Bowl",         icon: MapPin    },
+      { label: "Weather Intelligence", icon: CloudSun, route: "/weather-intelligence" },
     ]
   },
   {
@@ -63,11 +65,11 @@ const SIDEBAR_GROUPS = [
 function DateFilter() {
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   return (
-    <button className="hidden lg:flex items-center gap-2 h-9 px-3 rounded-lg border border-[#1e3e30] bg-[#0A1F17]/60 text-xs font-semibold text-emerald-100 hover:border-emerald-500/40 hover:text-white transition duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.2)] group">
-      <CalIcon className="h-4 w-4 text-emerald-400/80 group-hover:text-emerald-300 group-hover:scale-110 transition-all duration-300" />
+    <button className="hidden lg:flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-card/65 text-xs font-semibold text-foreground hover:border-emerald-500/40 hover:bg-accent/55 transition duration-300 shadow-sm group">
+      <CalIcon className="h-4 w-4 text-emerald-500/80 group-hover:text-emerald-400 group-hover:scale-110 transition-all duration-300" />
       <span>{today}</span>
-      <span className="text-emerald-500/80">· Real-Time Feed</span>
-      <ChevronDown className="h-3.5 w-3.5 text-emerald-400/60 group-hover:text-emerald-300 transition-transform duration-300" />
+      <span className="text-emerald-600 dark:text-emerald-400/80">· Real-Time Feed</span>
+      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-transform duration-300" />
     </button>
   );
 }
@@ -95,25 +97,25 @@ function UserAvatarMenu() {
   return (
     <div ref={ref} className="relative">
       <button onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 h-9 px-2.5 rounded-lg border border-[#1e3e30] bg-[#0A1F17]/60 hover:border-emerald-500/40 transition duration-300 group">
+        className="flex items-center gap-2 h-9 px-2.5 rounded-lg border border-border bg-card/65 hover:border-emerald-500/40 transition duration-300 group">
         <div className="h-7 w-7 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white text-xs font-bold shadow-md">
           {user?.full_name?.charAt(0)?.toUpperCase() || "F"}
         </div>
-        <span className="hidden md:inline text-xs font-semibold text-emerald-100 max-w-[100px] truncate">
+        <span className="hidden md:inline text-xs font-semibold text-foreground max-w-[100px] truncate">
           {user?.full_name || "Farmer"}
         </span>
-        <ChevronDown className="h-3.5 w-3.5 text-emerald-400/60" />
+        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-56 bg-[#0a1f17] border border-emerald-800/40 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-[9999] py-2 backdrop-blur-xl">
-          <div className="px-4 py-3 border-b border-emerald-800/20">
-            <p className="text-sm font-semibold text-white truncate">{user?.full_name}</p>
-            <p className="text-xs text-emerald-400/60 truncate">{user?.email}</p>
-            <p className="text-[10px] text-emerald-500/40 mt-1 uppercase">{user?.role}</p>
+        <div className="absolute right-0 top-12 w-56 bg-card border border-border rounded-xl shadow-lg z-[9999] py-2 backdrop-blur-xl">
+          <div className="px-4 py-3 border-b border-border/50">
+            <p className="text-sm font-semibold text-foreground truncate">{user?.full_name}</p>
+            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            <p className="text-[10px] text-emerald-600 dark:text-emerald-400/60 mt-1 uppercase">{user?.role}</p>
           </div>
           <Link to="/profile" onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-emerald-200/80 hover:bg-emerald-800/20 hover:text-white transition-colors">
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent hover:text-foreground transition-colors">
             <UserCircle className="w-4 h-4" /> My Profile
           </Link>
           <button onClick={handleLogout}
@@ -130,10 +132,10 @@ export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const { crop, setCrop, setAiOpen } = useApp();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-[9999] bg-gradient-to-r from-[#0A1F17] to-[#0F2E24] backdrop-blur-xl border-b border-[#16a34a]/20 shadow-[0_4px_30px_rgba(10,31,23,0.4)] animate-border-glow">
+    <header className="fixed top-0 left-0 right-0 z-[9999] bg-card/90 dark:bg-gradient-to-r dark:from-[#0A1F17] dark:to-[#0F2E24] backdrop-blur-xl border-b border-border shadow-sm dark:shadow-[0_4px_30px_rgba(10,31,23,0.4)] animate-border-glow text-card-foreground">
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes border-glow {
-          0%, 100% { border-bottom-color: rgba(22, 163, 74, 0.2); box-shadow: 0 4px 30px rgba(10, 31, 23, 0.4); }
+          0%, 100% { border-bottom-color: var(--color-border); box-shadow: 0 4px 30px rgba(10, 31, 23, 0.2); }
           50% { border-bottom-color: rgba(20, 184, 166, 0.4); box-shadow: 0 4px 35px rgba(22, 163, 74, 0.15); }
         }
         .animate-border-glow {
@@ -190,7 +192,7 @@ export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         <div className="flex items-center gap-2 md:gap-6 z-10 w-auto md:w-1/3">
           <button 
             onClick={onToggleSidebar} 
-            className="p-2 rounded-md text-emerald-100/80 hover:text-white hover:bg-emerald-800/20 active:scale-95 transition-all duration-300 shrink-0" 
+            className="p-2 rounded-md text-foreground/80 hover:text-foreground hover:bg-accent active:scale-95 transition-all duration-300 shrink-0" 
             aria-label="menu"
           >
             <Menu className="h-5 w-5 md:h-6 md:w-6" />
@@ -199,10 +201,10 @@ export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
             <img 
               src={navavishkarLogo} 
               alt="Navavishkar Logo" 
-              className="h-[45px] sm:h-[60px] lg:h-[70px] scale-125 lg:scale-[1.3] origin-left w-auto object-contain transition-all duration-500 group-hover:scale-[1.35] group-hover:brightness-110" 
+              className="h-[45px] sm:h-[60px] lg:h-[70px] scale-125 lg:scale-[1.3] origin-left w-auto object-contain transition-all duration-500 group-hover:scale-[1.35] group-hover:brightness-110 dark:brightness-100 brightness-90" 
             />
           </Link>
-          <div className="hidden lg:block h-8 w-px bg-emerald-800/30 shrink-0 ml-8" />
+          <div className="hidden lg:block h-8 w-px bg-border shrink-0 ml-8" />
         </div>
  
         {/* CENTER: Redesigned Premium Branding */}
@@ -220,7 +222,7 @@ export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
             <div className="flex flex-col items-center text-center">
               <div className="flex items-center gap-1">
                 <h1 className="text-xs sm:text-lg md:text-[25px] font-extrabold tracking-tight leading-none animate-text-glow" style={{ fontFamily: "'Poppins', 'Outfit', 'Inter', sans-serif" }}>
-                  <span className="bg-gradient-to-r from-green-400 via-lime-400 via-yellow-300 to-teal-400 bg-clip-text text-transparent animate-title-gradient">
+                  <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 via-teal-600 to-teal-500 dark:from-green-400 dark:via-lime-400 dark:via-yellow-300 dark:to-teal-400 bg-clip-text text-transparent animate-title-gradient">
                     AgriTwin Intelligence
                   </span>
                 </h1>
@@ -229,7 +231,7 @@ export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500 shadow-[0_0_10px_#10b981]"></span>
                 </span>
               </div>
-              <p className="text-[8px] md:text-[11.5px] font-medium tracking-[0.05em] text-emerald-300/80 mt-0.5 leading-none animate-fade-in">
+              <p className="text-[8px] md:text-[11.5px] font-medium tracking-[0.05em] text-emerald-600 dark:text-emerald-300/80 mt-0.5 leading-none animate-fade-in">
                 Smart Insights. Strong Harvests.
               </p>
             </div>
@@ -238,6 +240,7 @@ export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
  
         <div className="flex items-center gap-3.5 z-10">
           <DateFilter />
+          <ThemeToggle />
           <button 
             onClick={() => setAiOpen(true)}
             className="hidden md:inline-flex items-center gap-2 h-9 px-4 rounded-lg text-xs font-bold text-white tracking-wider uppercase bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-md transition-all duration-300 transform hover:scale-[1.03] animate-pulse-glow hover:shadow-[0_0_20px_rgba(20,184,166,0.6)] group"

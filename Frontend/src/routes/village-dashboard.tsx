@@ -6,6 +6,7 @@ import {
   CloudRain, Thermometer, BarChart3, Target
 } from "lucide-react";
 import { communityApi } from "@/services/communityApi";
+import { useDashboardContext } from "@/context/DashboardContext";
 
 export const Route = createFileRoute("/village-dashboard")({
   component: VillageDashboardPage,
@@ -53,13 +54,21 @@ interface VillageData {
 function VillageDashboardPage() {
   const [data, setData] = useState<VillageData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { searchQuery, searchDistrict } = useDashboardContext();
 
   useEffect(() => {
-    communityApi.getVillageDashboard()
+    setLoading(true);
+    const params: { village?: string; district?: string } = {};
+    if (searchQuery) params.village = searchQuery;
+    if (searchDistrict) params.district = searchDistrict;
+
+    communityApi.getVillageDashboard(params)
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [searchQuery, searchDistrict]);
+
+  const locationLabel = searchQuery || "All Villages";
 
   if (loading) {
     return (
@@ -69,7 +78,7 @@ function VillageDashboardPage() {
     );
   }
 
-  if (!data) return <p className="text-muted-foreground text-center py-20">No village data available.</p>;
+  if (!data) return <p className="text-muted-foreground text-center py-20">No village data available{searchQuery ? ` for ${searchQuery}` : ""}.</p>;
 
   const healthColor = data.village_health_score >= 80 ? "emerald" : data.village_health_score >= 55 ? "amber" : "red";
 
@@ -81,7 +90,10 @@ function VillageDashboardPage() {
           <BarChart3 className="w-6 h-6 text-emerald-400" />
           Village Intelligence Dashboard
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Aggregated analytics across all registered farms</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Aggregated analytics for <span className="text-emerald-400 font-semibold">{locationLabel}</span>
+          {searchDistrict && <span className="text-muted-foreground"> · {searchDistrict}</span>}
+        </p>
       </motion.div>
 
       {/* Village Health Score */}
@@ -89,7 +101,7 @@ function VillageDashboardPage() {
         className="bg-sidebar border border-sidebar-border rounded-2xl p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-muted-foreground mb-1">Village Health Score</p>
+            <p className="text-sm text-muted-foreground mb-1">{locationLabel} Health Score</p>
             <div className="flex items-end gap-2">
               <span className={`text-5xl font-black text-${healthColor}-400`}>{data.village_health_score}</span>
               <span className="text-lg text-muted-foreground mb-1">/100</span>

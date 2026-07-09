@@ -114,6 +114,20 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const storedTheme = localStorage.getItem('theme');
+                if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch (_) {}
+            `,
+          }}
+        />
       </head>
       <body>
         {children}
@@ -124,7 +138,7 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 // Pages that render WITHOUT the dashboard Layout (auth pages, landing)
-const AUTH_ROUTES = ["/landing", "/login", "/register", "/forgot-password"];
+const AUTH_ROUTES = ["/landing", "/login", "/register", "/forgot-password", "/about"];
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();

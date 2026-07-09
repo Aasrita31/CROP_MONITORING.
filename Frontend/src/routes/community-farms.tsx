@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { MapPin, Leaf, Droplets, TrendingUp, Search, Star } from "lucide-react";
 import { communityApi } from "@/services/communityApi";
+import { useDashboardContext } from "@/context/DashboardContext";
 
 export const Route = createFileRoute("/community-farms")({
   component: CommunityFarmsPage,
@@ -54,19 +55,27 @@ function CommunityFarmsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedFarm, setSelectedFarm] = useState<Farm | null>(null);
+  const { searchQuery, searchDistrict } = useDashboardContext();
 
   useEffect(() => {
-    communityApi.getCommunityFarms()
+    setLoading(true);
+    const params: { village?: string; district?: string } = {};
+    if (searchQuery) params.village = searchQuery;
+    if (searchDistrict) params.district = searchDistrict;
+
+    communityApi.getCommunityFarms(params)
       .then(setFarms)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [searchQuery, searchDistrict]);
 
   const filtered = farms.filter(f =>
     f.name.toLowerCase().includes(search.toLowerCase()) ||
     f.crop.toLowerCase().includes(search.toLowerCase()) ||
     (f.village || "").toLowerCase().includes(search.toLowerCase())
   );
+
+  const locationLabel = searchQuery || "All Villages";
 
   return (
     <div className="space-y-6">
@@ -77,7 +86,10 @@ function CommunityFarmsPage() {
             <MapPin className="w-6 h-6 text-emerald-400" />
             Community Farm Explorer
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Explore farms across your village and compare crop conditions</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Exploring farms in <span className="text-emerald-400 font-semibold">{locationLabel}</span>
+            {searchDistrict && <span className="text-muted-foreground"> · {searchDistrict}</span>}
+          </p>
         </div>
         <div className="relative w-full md:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500/50" />
@@ -195,7 +207,7 @@ function CommunityFarmsPage() {
       {!loading && filtered.length === 0 && (
         <div className="text-center py-20">
           <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-          <p className="text-muted-foreground">No community farms found. Register farms to see them here.</p>
+          <p className="text-muted-foreground">No community farms found{searchQuery ? ` in ${searchQuery}` : ""}. Register farms to see them here.</p>
         </div>
       )}
     </div>

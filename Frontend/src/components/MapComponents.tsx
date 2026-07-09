@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polygon, Circle, SVGOverlay, ImageOverlay } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polygon, Circle, SVGOverlay, ImageOverlay, Rectangle } from "react-leaflet";
 import { Search, Leaf, X, Layers, Target, Droplets, FlaskConical, Sprout, TrendingUp, Calendar, Activity, Bot, ChevronRight, ChevronLeft, MapPin, CheckCircle2, AlertTriangle, AlertCircle, Skull, Bug, Sun } from "lucide-react";
 import satelliteImg from "@/assets/satellite-farm.jpg";
 import { useApp } from "@/context/AppContext";
@@ -195,6 +195,31 @@ export function DashboardInteractiveMap({
   const { searchCoords, searchQuery, villageAnalysis, setSearchFields, setSearchCoords, setSearchQuery, selectedFieldId, setSelectedFieldId } = useDashboardContext();
   const [isLayersOpen, setIsLayersOpen] = useState(false);
   const { highlightedFields, dashboardMode, applyVillageSearchResults } = useApp();
+  const [nearbyVillages, setNearbyVillages] = useState<any[]>([]);
+
+  // Fetch neighbouring villages when search coords change
+  useEffect(() => {
+    if (!searchCoords) {
+      setNearbyVillages([]);
+      return;
+    }
+    const [lat, lon] = searchCoords;
+    fetch(`/api/villages/nearby?lat=${lat}&lon=${lon}&radius_km=15`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          // Filter out the searched village itself
+          const filtered = data.filter(
+            (v: any) => v.name.toLowerCase() !== (searchQuery || "").toLowerCase()
+          );
+          setNearbyVillages(filtered);
+        }
+      })
+      .catch(err => {
+        console.error("Failed to fetch nearby villages:", err);
+        setNearbyVillages([]);
+      });
+  }, [searchCoords?.[0], searchCoords?.[1]]);
 
   // Helper to enrich fields with polygons
   const enrichFields = (rawFields: any[], cCenter: [number, number]) => {
@@ -359,6 +384,48 @@ export function DashboardInteractiveMap({
           })} />
         )}
         
+        {/* Render neighbouring village bounding boxes */}
+        {nearbyVillages.map((nv: any) => {
+          const bb = nv.boundingbox; // [minLat, maxLat, minLon, maxLon]
+          if (!bb || bb.length < 4) return null;
+          const bounds: [[number, number], [number, number]] = [
+            [bb[0], bb[2]],
+            [bb[1], bb[3]]
+          ];
+          const labelCenter: [number, number] = [nv.lat, nv.lon];
+          return (
+            <React.Fragment key={`nearby-${nv.name}`}>
+              <Rectangle
+                bounds={bounds}
+                pathOptions={{
+                  color: '#14b8a6',
+                  weight: 2,
+                  dashArray: '6 4',
+                  fillColor: '#14b8a6',
+                  fillOpacity: 0.06,
+                }}
+                eventHandlers={{
+                  click: () => {
+                    handleLocationSelect(nv.lat, nv.lon, nv.name);
+                  }
+                }}
+              />
+              <Marker position={labelCenter} interactive={true} icon={L.divIcon({
+                html: `<div class="flex flex-col items-center cursor-pointer"><div class="px-2 py-1 bg-teal-900/80 backdrop-blur-md text-teal-200 text-[10px] font-bold rounded border border-teal-500/30 whitespace-nowrap shadow-sm hover:bg-teal-800/90 hover:text-white transition-colors">${nv.name}</div></div>`,
+                className: 'bg-transparent',
+                iconSize: [150, 30],
+                iconAnchor: [75, 15]
+              })}
+              eventHandlers={{
+                click: () => {
+                  handleLocationSelect(nv.lat, nv.lon, nv.name);
+                }
+              }}
+              />
+            </React.Fragment>
+          );
+        })}
+
         {/* Render fields as polygons with internal mixed conditions */}
         {(dynamicFields || []).map((f: any) => {
           const isSelected = selectedFieldId === f.id;

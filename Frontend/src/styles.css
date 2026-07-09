@@ -63,7 +63,7 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.995 0.003 145);
+  --background: oklch(0.978 0.012 145);
   --foreground: oklch(0.18 0.03 155);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.18 0.03 155);
@@ -193,6 +193,40 @@
   50% { transform: translate(40px,0) rotate(0deg); }
   75% { transform: translate(20px,10px) rotate(-8deg); }
   100% { transform: translate(0,0) rotate(0deg); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+@keyframes grid-drift {
+  from { background-position: 0 0; }
+  to { background-position: 10rem 10rem; }
+}
+@keyframes scanning-laser {
+  0% { transform: translateY(-20%); opacity: 0; }
+  15% { opacity: 0.8; }
+  85% { opacity: 0.8; }
+  100% { transform: translateY(120%); opacity: 0; }
+}
+.animate-float-slow {
+  animation: float-slow 20s infinite ease-in-out;
+}
+.animate-grid-drift {
+  animation: grid-drift 120s infinite linear;
+}
+.animate-scanning-laser {
+  animation: scanning-laser 8s infinite linear;
+}
+
+@keyframes sway {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(5deg) scale(1.01); }
+}
+.animate-sway {
+  transform-origin: bottom center;
+  animation: sway 8s ease-in-out infinite;
 }
 
 .heatmap-grad {

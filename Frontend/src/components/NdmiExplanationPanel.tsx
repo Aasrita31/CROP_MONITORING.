@@ -7,8 +7,7 @@ interface NdmiExplanationPanelProps {
 }
 
 export function NdmiExplanationPanel({ villageName, villageAnalysis }: NdmiExplanationPanelProps) {
-  const defaultVillage = "Gudur";
-  const displayVillage = villageName || defaultVillage;
+  const displayVillage = villageName || "Your Village";
 
   const fallbackDate = "22 June 2026";
   const fallbackProduct = "S2B_MSIL2A_20260622";

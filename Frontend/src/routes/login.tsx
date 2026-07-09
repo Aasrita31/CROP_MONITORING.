@@ -1,12 +1,88 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
+
+/* ── Animated Background Particles ──────────────────────────────── */
+function FloatingLeaves() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {[...Array(12)].map((_, i) => {
+        const left = `${(i * 13) % 100}%`;
+        const top = `${(i * 17) % 100}%`;
+        const size = 16 + (i * 3) % 24;
+        const delay = (i * 0.7) % 5;
+        const duration = 8 + (i * 1.5) % 8;
+        return (
+          <motion.div
+            key={i}
+            className="absolute text-emerald-600/15 dark:text-emerald-400/25"
+            style={{
+              left,
+              top,
+              fontSize: `${size}px`,
+            }}
+            animate={{
+              y: [0, -30, 0],
+              x: [0, (i % 2 === 0 ? 15 : -15), 0],
+              rotate: [0, 360],
+              opacity: [0.1, 0.35, 0.1],
+            }}
+            transition={{
+              duration,
+              repeat: Infinity,
+              delay,
+              ease: "easeInOut",
+            }}
+          >
+            🍃
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CloudAnimation() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {[...Array(3)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute opacity-[0.03]"
+          style={{
+            top: `${20 + i * 25}%`,
+            fontSize: "100px",
+          }}
+          animate={{
+            x: ["-10%", "110%"],
+          }}
+          transition={{
+            duration: 40 + i * 15,
+            repeat: Infinity,
+            delay: i * 8,
+            ease: "linear",
+          }}
+        >
+          ☁️
+        </motion.div>
+      ))}
+    </div>
+  );
+}
 
 function LoginPage() {
   const [identifier, setIdentifier] = useState("");
@@ -35,51 +111,57 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#040e0a] flex items-center justify-center px-4 relative overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
-      {/* Background */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(16,185,129,0.1)_0%,_transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(20,184,166,0.06)_0%,_transparent_50%)]" />
+    <div className="min-h-screen bg-background text-foreground dark:bg-[#040e0a] dark:text-white flex flex-col items-center justify-center px-4 relative overflow-hidden transition-colors duration-500" style={{ fontFamily: "'Inter', sans-serif" }}>
+      
+      {/* Dynamic Background Effects */}
+      <div className="fixed inset-0 z-0">
+        {/* Glowing Blurred Orbs */}
+        <div className="absolute top-[10%] left-[15%] w-[35rem] h-[35rem] rounded-full bg-emerald-300/10 dark:bg-emerald-500/5 blur-[8rem] pointer-events-none animate-float-slow" style={{ animationDelay: '0s' }} />
+        <div className="absolute bottom-[20%] right-[10%] w-[30rem] h-[30rem] rounded-full bg-teal-300/10 dark:bg-teal-500/5 blur-[8rem] pointer-events-none animate-float-slow" style={{ animationDelay: '-5s' }} />
+        
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(52,211,153,0.12)_0%,_transparent_60%)] dark:bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.08)_0%,_transparent_60%)]" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-emerald-100/10 via-background to-teal-100/5 dark:from-transparent dark:via-[#040e0a] dark:to-transparent" />
+        
+        {/* Tech Grid Pattern (Animated/Drifting) */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(16,185,129,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(16,185,129,0.05)_1px,transparent_1px)] bg-[size:5rem_5rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] dark:bg-[linear-gradient(to_right,rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(16,185,129,0.02)_1px,transparent_1px)] animate-grid-drift" />
+        
+        {/* Laser Scanner Effect */}
+        <div className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent dark:via-emerald-400/15 animate-scanning-laser shadow-[0_0_12px_rgba(16,185,129,0.5)] pointer-events-none" />
+
+        <FloatingLeaves />
+        <CloudAnimation />
       </div>
 
-      {/* Floating elements */}
-      {[...Array(6)].map((_, i) => (
-        <motion.div
-          key={i}
-          className="absolute text-green-500/10"
-          style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, fontSize: "20px" }}
-          animate={{ y: [0, -20, 0], rotate: [0, 180, 360], opacity: [0.05, 0.15, 0.05] }}
-          transition={{ duration: 10 + i * 2, repeat: Infinity, delay: i }}
-        >
-          🌾
-        </motion.div>
-      ))}
+      {/* Floating Theme Toggle (Top Right) */}
+      <div className="absolute top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
 
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7 }}
-        className="relative z-10 w-full max-w-md"
+        className="relative z-10 w-full max-w-md my-8"
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link to="/landing" className="inline-flex items-center gap-2 mb-4">
-            <span className="text-3xl">🌾</span>
-            <span className="text-2xl font-extrabold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+          <Link to="/landing" className="inline-flex items-center gap-2 mb-4 group">
+            <span className="text-3xl animate-bounce duration-1000">🌾</span>
+            <span className="text-2xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent group-hover:opacity-90 transition-opacity">
               AgriTwin Intelligence
             </span>
           </Link>
-          <p className="text-emerald-300/50 text-sm">Welcome back! Sign in to your account.</p>
+          <p className="text-muted-foreground dark:text-emerald-300/50 text-sm">Welcome back! Sign in to your account.</p>
         </div>
 
         {/* Card */}
-        <div className="bg-[#0a1f17]/80 backdrop-blur-2xl border border-emerald-900/40 rounded-3xl p-8 shadow-[0_20px_80px_rgba(0,0,0,0.5)]">
+        <div className="bg-card/90 dark:bg-[#0a1f17]/80 backdrop-blur-2xl border border-border dark:border-emerald-900/40 rounded-3xl p-8 shadow-lg dark:shadow-[0_20px_80px_rgba(0,0,0,0.5)]">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl"
+                className="bg-red-500/10 border border-red-500/30 text-red-500 dark:text-red-400 text-sm px-4 py-3 rounded-xl font-medium"
               >
                 {error}
               </motion.div>
@@ -87,41 +169,41 @@ function LoginPage() {
 
             {/* Email/Phone */}
             <div>
-              <label className="block text-xs font-semibold text-emerald-400/80 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-foreground/80 dark:text-emerald-400/80 uppercase tracking-wider mb-2">
                 Email or Mobile Number
               </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-emerald-500/50" />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-emerald-600/50 dark:text-emerald-500/50" />
                 <input
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="farmer@example.com"
                   required
-                  className="w-full pl-11 pr-4 py-3 bg-emerald-950/40 border border-emerald-800/40 rounded-xl text-white placeholder-emerald-600/40 text-sm focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30 transition-all"
+                  className="w-full pl-11 pr-4 py-3 bg-background/80 dark:bg-emerald-950/40 border border-border dark:border-emerald-800/40 rounded-xl text-foreground dark:text-white placeholder-muted-foreground/50 dark:placeholder-emerald-600/40 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-semibold text-emerald-400/80 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-foreground/80 dark:text-emerald-400/80 uppercase tracking-wider mb-2">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-emerald-500/50" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-emerald-600/50 dark:text-emerald-500/50" />
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full pl-11 pr-11 py-3 bg-emerald-950/40 border border-emerald-800/40 rounded-xl text-white placeholder-emerald-600/40 text-sm focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30 transition-all"
+                  className="w-full pl-11 pr-11 py-3 bg-background/80 dark:bg-emerald-950/40 border border-border dark:border-emerald-800/40 rounded-xl text-foreground dark:text-white placeholder-muted-foreground/50 dark:placeholder-emerald-600/40 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500/50 hover:text-emerald-400 transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-600/50 dark:text-emerald-500/50 hover:text-emerald-500 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                 </button>
@@ -135,15 +217,15 @@ function LoginPage() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-emerald-800/50 bg-emerald-950/40 text-emerald-500 focus:ring-emerald-500/30"
+                  className="w-4 h-4 rounded border-border dark:border-emerald-800/50 bg-background/80 dark:bg-emerald-950/40 text-emerald-600 focus:ring-emerald-500/30"
                 />
-                <span className="text-xs text-emerald-300/60 group-hover:text-emerald-300 transition-colors">
+                <span className="text-xs text-muted-foreground dark:text-emerald-300/60 group-hover:text-foreground dark:group-hover:text-emerald-300 transition-colors">
                   Remember me
                 </span>
               </label>
               <Link
                 to="/forgot-password"
-                className="text-xs text-emerald-400/70 hover:text-emerald-300 transition-colors font-medium"
+                className="text-xs text-emerald-600 dark:text-emerald-400/70 hover:text-emerald-500 transition-colors font-semibold"
               >
                 Forgot Password?
               </Link>
@@ -153,7 +235,7 @@ function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3.5 text-sm font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:from-emerald-400 hover:to-teal-400 shadow-[0_4px_20px_rgba(16,185,129,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.01]"
+              className="w-full flex items-center justify-center gap-2 py-3.5 text-sm font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:from-emerald-400 hover:to-teal-400 shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.01]"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -168,17 +250,17 @@ function LoginPage() {
             {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-emerald-800/30" />
+                <div className="w-full border-t border-border dark:border-emerald-800/30" />
               </div>
               <div className="relative flex justify-center">
-                <span className="bg-[#0a1f17] px-3 text-xs text-emerald-500/40">or continue with</span>
+                <span className="bg-card px-3 text-xs text-muted-foreground dark:bg-[#0a1f17] dark:text-emerald-500/40">or continue with</span>
               </div>
             </div>
 
             {/* Google Login */}
             <button
               type="button"
-              className="w-full flex items-center justify-center gap-3 py-3 text-sm font-medium text-emerald-200/70 bg-emerald-950/30 border border-emerald-800/30 rounded-xl hover:border-emerald-700/50 hover:text-emerald-200 transition-all"
+              className="w-full flex items-center justify-center gap-3 py-3 text-sm font-medium text-foreground/80 dark:text-emerald-200/70 bg-background/50 dark:bg-emerald-950/30 border border-border dark:border-emerald-800/30 rounded-xl hover:border-emerald-500 dark:hover:border-emerald-700/50 hover:text-foreground dark:hover:text-emerald-200 transition-all"
               onClick={() => alert("Google OAuth coming soon!")}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -193,9 +275,9 @@ function LoginPage() {
         </div>
 
         {/* Register Link */}
-        <p className="text-center text-sm text-emerald-300/40 mt-6">
+        <p className="text-center text-sm text-muted-foreground dark:text-emerald-300/40 mt-6">
           Don't have an account?{" "}
-          <Link to="/register" className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors">
+          <Link to="/register" className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 font-semibold transition-colors">
             Register
           </Link>
         </p>
@@ -203,3 +285,4 @@ function LoginPage() {
     </div>
   );
 }
+
