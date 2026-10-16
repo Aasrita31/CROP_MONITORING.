@@ -118,6 +118,8 @@ class VillageSearchResponse(BaseModel):
     district: str
     latitude: float
     longitude: float
+    geojson: Optional[Dict[str, Any]] = None
+    boundingbox: Optional[List[float]] = None
 
 class SatelliteLatestResponse(BaseModel):
     imageUrl: str
@@ -156,3 +158,5 @@ class VillageAnalysisResult(BaseModel):
     fields: Optional[List[Dict[str, Any]]] = None
     copernicusMetadata: Optional[Dict[str, Any]] = None
     bandwidthDetails: Optional[List[Dict[str, Any]]] = None
+    geojson: Optional[Dict[str, Any]] = None
+    boundingbox: Optional[List[float]] = None

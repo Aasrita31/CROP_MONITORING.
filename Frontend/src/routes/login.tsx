@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -44,7 +44,6 @@ function FloatingLeaves() {
             transition={{
               duration,
               repeat: Infinity,
-              delay,
               ease: "easeInOut",
             }}
           >
@@ -84,6 +83,26 @@ function CloudAnimation() {
   );
 }
 
+const BackgroundEffects = memo(() => (
+  <div className="fixed inset-0 z-0">
+    {/* Glowing Blurred Orbs */}
+    <div className="absolute top-[10%] left-[15%] w-[35rem] h-[35rem] rounded-full bg-emerald-300/10 dark:bg-emerald-500/5 blur-[8rem] pointer-events-none animate-float-slow" style={{ animationDelay: '0s' }} />
+    <div className="absolute bottom-[20%] right-[10%] w-[30rem] h-[30rem] rounded-full bg-teal-300/10 dark:bg-teal-500/5 blur-[8rem] pointer-events-none animate-float-slow" style={{ animationDelay: '-5s' }} />
+    
+    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(52,211,153,0.12)_0%,_transparent_60%)] dark:bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.08)_0%,_transparent_60%)]" />
+    <div className="absolute inset-0 bg-gradient-to-tr from-emerald-100/10 via-background to-teal-100/5 dark:from-transparent dark:via-[#040e0a] dark:to-transparent" />
+    
+    {/* Tech Grid Pattern (Animated/Drifting) */}
+    <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(16,185,129,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(16,185,129,0.05)_1px,transparent_1px)] bg-[size:5rem_5rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] dark:bg-[linear-gradient(to_right,rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(16,185,129,0.02)_1px,transparent_1px)] animate-grid-drift" />
+    
+    {/* Laser Scanner Effect */}
+    <div className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent dark:via-emerald-400/15 animate-scanning-laser shadow-[0_0_12px_rgba(16,185,129,0.5)] pointer-events-none" />
+
+    <FloatingLeaves />
+    <CloudAnimation />
+  </div>
+));
+
 function LoginPage() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -114,23 +133,7 @@ function LoginPage() {
     <div className="min-h-screen bg-background text-foreground dark:bg-[#040e0a] dark:text-white flex flex-col items-center justify-center px-4 relative overflow-hidden transition-colors duration-500" style={{ fontFamily: "'Inter', sans-serif" }}>
       
       {/* Dynamic Background Effects */}
-      <div className="fixed inset-0 z-0">
-        {/* Glowing Blurred Orbs */}
-        <div className="absolute top-[10%] left-[15%] w-[35rem] h-[35rem] rounded-full bg-emerald-300/10 dark:bg-emerald-500/5 blur-[8rem] pointer-events-none animate-float-slow" style={{ animationDelay: '0s' }} />
-        <div className="absolute bottom-[20%] right-[10%] w-[30rem] h-[30rem] rounded-full bg-teal-300/10 dark:bg-teal-500/5 blur-[8rem] pointer-events-none animate-float-slow" style={{ animationDelay: '-5s' }} />
-        
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(52,211,153,0.12)_0%,_transparent_60%)] dark:bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.08)_0%,_transparent_60%)]" />
-        <div className="absolute inset-0 bg-gradient-to-tr from-emerald-100/10 via-background to-teal-100/5 dark:from-transparent dark:via-[#040e0a] dark:to-transparent" />
-        
-        {/* Tech Grid Pattern (Animated/Drifting) */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(16,185,129,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(16,185,129,0.05)_1px,transparent_1px)] bg-[size:5rem_5rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] dark:bg-[linear-gradient(to_right,rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(16,185,129,0.02)_1px,transparent_1px)] animate-grid-drift" />
-        
-        {/* Laser Scanner Effect */}
-        <div className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent dark:via-emerald-400/15 animate-scanning-laser shadow-[0_0_12px_rgba(16,185,129,0.5)] pointer-events-none" />
-
-        <FloatingLeaves />
-        <CloudAnimation />
-      </div>
+      <BackgroundEffects />
 
       {/* Floating Theme Toggle (Top Right) */}
       <div className="absolute top-6 right-6 z-50">

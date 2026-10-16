@@ -21,16 +21,43 @@ class SentinelService:
     def get_village_location(village_name: str):
         """Uses Nominatim OpenStreetMap API to resolve village name to bounding box and coordinates."""
         try:
-            url = f"https://nominatim.openstreetmap.org/search?q={village_name},Andhra+Pradesh,India&format=json&limit=1"
-            headers = {"User-Agent": "AgriTwin-Monitoring-Platform"}
+            import requests
+            # Use requests.utils.quote to escape special characters
+            q_escaped = requests.utils.quote(village_name)
+            url = f"https://nominatim.openstreetmap.org/search?q={q_escaped},Andhra+Pradesh,India&format=json&polygon_geojson=1&limit=5"
+            headers = {"User-Agent": "AgriTwin-Monitoring-Platform/1.0"}
             response = requests.get(url, headers=headers, timeout=6)
-            if response.status_code == 200 and len(response.json()) > 0:
-                data = response.json()[0]
+            results = response.json() if response.status_code == 200 else []
+            
+            if not results:
+                url_fallback = f"https://nominatim.openstreetmap.org/search?q={q_escaped},India&format=json&polygon_geojson=1&limit=5"
+                res_fb = requests.get(url_fallback, headers=headers, timeout=6)
+                if res_fb.status_code == 200:
+                    results = res_fb.json()
+
+            if results and len(results) > 0:
+                # Find an administrative boundary polygon if available
+                match = None
+                for res in results:
+                    gtype = res.get("geojson", {}).get("type")
+                    if gtype in ["Polygon", "MultiPolygon"] and res.get("class") == "boundary":
+                        match = res
+                        break
+                if not match:
+                    for res in results:
+                        gtype = res.get("geojson", {}).get("type")
+                        if gtype in ["Polygon", "MultiPolygon"]:
+                            match = res
+                            break
+                if not match:
+                    match = results[0]
+
                 return {
-                    "lat": float(data["lat"]),
-                    "lon": float(data["lon"]),
-                    "boundingbox": [float(x) for x in data["boundingbox"]],
-                    "name": data["display_name"]
+                    "lat": float(match["lat"]),
+                    "lon": float(match["lon"]),
+                    "boundingbox": [float(x) for x in match["boundingbox"]],
+                    "name": match["display_name"],
+                    "geojson": match.get("geojson")
                 }
         except Exception as e:
             print(f"Nominatim Error: {e}")
@@ -137,8 +164,8 @@ class SentinelService:
                 ]
             },
             "output": {
-                "width": 512,
-                "height": 512,
+                "width": 256,
+                "height": 256,
                 "responses": [
                     {
                         "identifier": "default",
@@ -156,7 +183,7 @@ class SentinelService:
             "Accept": "image/tiff"
         }
         
-        response = requests.post(process_url, json=request_payload, headers=headers)
+        response = requests.post(process_url, json=request_payload, headers=headers, timeout=6)
         
         if response.status_code != 200:
             raise Exception(f"Copernicus API Error: {response.text}")

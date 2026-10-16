@@ -11,15 +11,22 @@ import { SatelliteEvidencePanel } from "./SatelliteEvidencePanel";
 
 function MetricCard({ title, value, unit, icon, color }: any) {
   return (
-    <div className="bg-card border border-border rounded-xl p-3 flex items-center justify-between">
+    <div 
+      className="bg-card/65 backdrop-blur border rounded-xl p-4 flex items-center justify-between hover:scale-[1.02] transition-all duration-300"
+      style={{ 
+        borderColor: `${color}50`, 
+        boxShadow: `0 4px 15px ${color}10`,
+        background: `linear-gradient(135deg, rgba(255,255,255,0.01) 0%, ${color}05 100%)`
+      }}
+    >
       <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg bg-opacity-10`} style={{ backgroundColor: `${color}20`, color: color }}>
+        <div className="p-2.5 rounded-lg bg-opacity-15 flex items-center justify-center" style={{ backgroundColor: `${color}25`, color: color }}>
           {icon}
         </div>
         <div>
-          <div className="text-[10px] uppercase font-bold text-muted-foreground">{title}</div>
-          <div className="text-lg font-black text-foreground">
-            {value} <span className="text-xs text-muted-foreground font-semibold">{unit}</span>
+          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/85 mb-0.5">{title}</div>
+          <div className="text-xl font-black tracking-tight" style={{ color: color }}>
+            {value} <span className="text-xs text-muted-foreground font-medium">{unit}</span>
           </div>
         </div>
       </div>
@@ -144,6 +151,31 @@ export function FieldAnalysisPanel({ field }: { field: RegisteredField }) {
       >
         <Volume2 className="h-5 w-5" /> Listen to Crop Report
       </button>
+      
+      {/* GPS Mapping metadata if walked */}
+      {((field as any).walkingDistance !== undefined && (field as any).walkingDistance > 0) && (
+        <div className="bg-emerald-950/15 border border-emerald-500/10 rounded-xl p-3.5 space-y-2">
+          <div className="text-[10px] uppercase font-bold tracking-widest text-emerald-600 mb-1 flex items-center gap-1">
+            <Target className="h-3.5 w-3.5 text-emerald-500" /> Walked GPS Mapping Session
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-slate-950/30 p-2 rounded-lg border border-border">
+              <div className="text-[8px] font-bold text-muted-foreground uppercase">Distance</div>
+              <div className="text-xs font-black text-foreground">{(field as any).walkingDistance} m</div>
+            </div>
+            <div className="bg-slate-950/30 p-2 rounded-lg border border-border">
+              <div className="text-[8px] font-bold text-muted-foreground uppercase">Duration</div>
+              <div className="text-xs font-black text-foreground">
+                {Math.floor((field as any).mappingDuration / 60)}m {(field as any).mappingDuration % 60}s
+              </div>
+            </div>
+            <div className="bg-slate-950/30 p-2 rounded-lg border border-border">
+              <div className="text-[8px] font-bold text-muted-foreground uppercase">Avg GPS</div>
+              <div className="text-xs font-black text-foreground">±{(field as any).averageGpsAccuracy || "3.2"}m</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 2. Vegetation & Water Analytics */}
       <div>

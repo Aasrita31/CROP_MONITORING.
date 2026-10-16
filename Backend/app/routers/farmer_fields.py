@@ -63,6 +63,9 @@ def get_fields(farmer: Farmer = Depends(get_farmer_for_user), db: Session = Depe
             "sowingDate": f.sowing_date,
             "irrigationType": f.irrigation_type,
             "farmingType": f.farming_type,
+            "walkingDistance": f.walking_distance,
+            "mappingDuration": f.mapping_duration,
+            "averageGpsAccuracy": f.average_gps_accuracy,
             "createdAt": f.created_at.isoformat() if f.created_at else None
         })
     return result
@@ -87,7 +90,10 @@ def create_field(payload: Dict[str, Any], farmer: Farmer = Depends(get_farmer_fo
         variety=payload.get("variety"),
         sowing_date=payload.get("sowingDate"),
         irrigation_type=payload.get("irrigationType"),
-        farming_type=payload.get("farmingType")
+        farming_type=payload.get("farmingType"),
+        walking_distance=payload.get("walkingDistance"),
+        mapping_duration=payload.get("mappingDuration"),
+        average_gps_accuracy=payload.get("averageGpsAccuracy")
     )
     
     db.add(field)

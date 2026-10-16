@@ -42,6 +42,9 @@ class FarmerField(Base):
     sowing_date = Column(String, nullable=True)
     irrigation_type = Column(String, nullable=True)
     farming_type = Column(String, nullable=True)
+    walking_distance = Column(Float, nullable=True)
+    mapping_duration = Column(Integer, nullable=True)
+    average_gps_accuracy = Column(Float, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     farmer = relationship("Farmer", back_populates="fields")

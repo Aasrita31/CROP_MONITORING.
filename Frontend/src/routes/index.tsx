@@ -23,6 +23,7 @@ import fruitDisease from "@/assets/dragonfruit-disease.png";
 import { INDIA_STATES_DATA } from "@/components/india-states-data";
 import { useApp } from "@/context/AppContext";
 import { useDashboardContext } from "@/context/DashboardContext";
+import { useAuthStore } from "@/stores/authStore";
 import { useVillageSearch } from "@/hooks/useVillageSearch";
 import { lazy, Suspense } from "react";
 import { NdviExplanationPanel } from "@/components/NdviExplanationPanel";
@@ -244,6 +245,7 @@ function VillageSearchPanel() {
 function Dashboard() {
   const [selected, setSelected] = useState<string | null>(null);
   const [time, setTime] = useState(50);
+  const [viewMode, setViewMode] = useState<"map" | "values">("map");
 
   // New map state variables
   const [mapMode, setMapMode] = useState<"farm" | "national">("farm");
@@ -253,12 +255,19 @@ function Dashboard() {
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const { farm, setFarm, crop, activeFarm, weatherData, nationalNdvi, dashboardMode, setDashboardMode } = useApp();
-  const { searchCoords, searchQuery, villageAnalysis, searchFields, activePanel, selectedDistrictId, registeredFields } = useDashboardContext();
+  const { searchCoords, setSearchCoords, searchQuery, setSearchQuery, villageAnalysis, setVillageAnalysis, searchFields, setSearchFields, activePanel, selectedDistrictId, registeredFields } = useDashboardContext();
+
+  // Keep map view active by default
+
+  const { user } = useAuthStore();
+  const currentUserFields = useMemo(() => {
+    return registeredFields.filter(f => f.name.toLowerCase().trim() === user?.full_name?.toLowerCase().trim());
+  }, [registeredFields, user]);
 
   const mapCenter = useMemo<[number, number]>(() => {
     if (searchCoords) return searchCoords;
-    return activeFarm?.center || [16.5, 80.6];
-  }, [searchCoords, activeFarm]);
+    return [20.5937, 78.9629];
+  }, [searchCoords]);
 
   const mapFields = useMemo(() => {
     if (searchFields && searchFields.length > 0) {
@@ -304,58 +313,101 @@ function Dashboard() {
 
           {activePanel !== "Farm Registration & Fields" && <VillageSearchPanel />}
 
+          {/* View Toggle Bar when area is searched */}
+          {(searchCoords || villageAnalysis) && (
+            <div className="bg-card border border-border p-3 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setViewMode("map")}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition ${viewMode === "map" ? "bg-primary text-primary-foreground shadow-md" : "bg-accent/50 text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Globe className="h-4 w-4" /> Map View
+                </button>
+                <button
+                  onClick={() => setViewMode("values")}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition ${viewMode === "values" ? "bg-primary text-primary-foreground shadow-md" : "bg-accent/50 text-muted-foreground hover:text-foreground"}`}
+                >
+                  <FileBarChart className="h-4 w-4" /> Values Analysis Report
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium text-muted-foreground">Location: <strong className="text-foreground">{searchQuery}</strong></span>
+                <button
+                  onClick={() => {
+                    setSearchCoords(null);
+                    setSearchQuery("");
+                    setVillageAnalysis(null);
+                    setSearchFields([]);
+                    setViewMode("map");
+                  }}
+                  className="px-3 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-lg text-xs font-semibold transition"
+                >
+                  Clear Selection
+                </button>
+              </div>
+            </div>
+          )}
+
           {activePanel === "Village Monitoring" || activePanel === "Dashboard" ? (
-            (activePanel === "Dashboard" && registeredFields.length === 0) ? (
-              <WelcomeFarmSetup />
+            viewMode === "values" && (searchCoords || villageAnalysis) ? (
+              /* Values Focused View */
+              <div className="w-full animate-in fade-in duration-300">
+                <FarmerAdvisorPanel
+                  villageName={searchQuery}
+                  villageAnalysis={villageAnalysis}
+                  showIndexCards={true}
+                />
+              </div>
             ) : (
-            <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <div className="xl:col-span-2 space-y-6">
-              <div className="h-[calc(100vh-290px)] w-full rounded-2xl overflow-hidden shadow-[var(--shadow-soft)] mb-6">
-                <ClientOnly>
-                  <Suspense fallback={<div className="w-full h-full bg-[#1c2128] flex items-center justify-center text-muted-foreground">Loading interactive map...</div>}>
-                    <DashboardInteractiveMap 
-                      center={mapCenter} 
-                      fields={mapFields} 
-                      onFieldClick={setSelected} 
-                    />
-                  </Suspense>
-                </ClientOnly>
-              </div>
-            </div>
-            <div className="flex flex-col h-[calc(100vh-290px)] gap-4">
-              {/* Mode Toggle */}
-              <div className="flex w-full bg-accent/40 rounded-xl p-1 border border-border shadow-sm shrink-0">
-                <button 
-                  onClick={() => setDashboardMode("farmer")} 
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${dashboardMode === "farmer" ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  <Leaf className="h-4 w-4" /> Farmer View
-                </button>
-                <button 
-                  onClick={() => setDashboardMode("expert")} 
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${dashboardMode === "expert" ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  <Activity className="h-4 w-4" /> Expert Mode
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-                {/* Right panel — farmer view uses FarmerAdvisorPanel, expert uses raw FieldPanel */}
-                {dashboardMode === "farmer" ? (
-                  <FarmerAdvisorPanel
-                    villageName={searchQuery}
-                    villageAnalysis={villageAnalysis}
-                    showIndexCards={false}
-                  />
-                ) : (
-                  <>
-                    <FieldPanel field={field} crop={crop} villageAnalysis={villageAnalysis} villageName={searchQuery} />
-                    <AiInsights insights={activeFarm.insights} />
-                  </>
-                )}
-              </div>
-            </div>
-          </section>
-          )) : activePanel === "AP Rice Bowl" ? (
+              /* Main Interactive Map View */
+              <section className="grid grid-cols-1 xl:grid-cols-3 gap-6 animate-in fade-in duration-300">
+                <div className="xl:col-span-2 space-y-6">
+                  <div className="h-[480px] w-full rounded-2xl overflow-hidden shadow-[var(--shadow-soft)] border border-border">
+                    <ClientOnly>
+                      <Suspense fallback={<div className="w-full h-full bg-[#1c2128] flex items-center justify-center text-muted-foreground">Loading interactive map...</div>}>
+                        <DashboardInteractiveMap 
+                          center={mapCenter} 
+                          fields={mapFields} 
+                          onFieldClick={setSelected} 
+                        />
+                      </Suspense>
+                    </ClientOnly>
+                  </div>
+                </div>
+                <div className="flex flex-col h-[480px] gap-4">
+                  {/* Mode Toggle */}
+                  <div className="flex w-full bg-accent/40 rounded-xl p-1 border border-border shadow-sm shrink-0">
+                    <button 
+                      onClick={() => setDashboardMode("farmer")} 
+                      className={`flex-1 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${dashboardMode === "farmer" ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
+                    >
+                      <Leaf className="h-4 w-4" /> Farmer View
+                    </button>
+                    <button 
+                      onClick={() => setDashboardMode("expert")} 
+                      className={`flex-1 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${dashboardMode === "expert" ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"}`}
+                    >
+                      <Activity className="h-4 w-4" /> Expert Mode
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                    {dashboardMode === "farmer" ? (
+                      <FarmerAdvisorPanel
+                        villageName={searchQuery}
+                        villageAnalysis={villageAnalysis}
+                        showIndexCards={false}
+                      />
+                    ) : (
+                      <>
+                        <FieldPanel field={field} crop={crop} villageAnalysis={villageAnalysis} villageName={searchQuery} />
+                        <AiInsights insights={activeFarm.insights} />
+                      </>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )
+          ) : activePanel === "AP Rice Bowl" ? (
             <div className="animate-in fade-in duration-500">
               <ClientOnly>
                 <Suspense fallback={<div className="h-[400px] w-full flex items-center justify-center text-muted-foreground bg-card rounded-2xl border border-border">Loading AP Rice Bowl Intelligence...</div>}>
@@ -381,7 +433,7 @@ function Dashboard() {
           ) : (
             <AnalyticsPanel title={activePanel} villageName={searchQuery} />
           )}
-          <footer className="pt-6 pb-2 text-xs text-muted-foreground flex items-center justify-between">
+          <footer className="hidden md:flex pt-6 pb-2 text-xs text-muted-foreground items-center justify-between">
             <div className="flex items-center gap-2">
               <Leaf className="h-3.5 w-3.5 text-primary" />
               <span>AgriTwin Vision · v4.5 · Live 10m Sentinel-2 Feed</span>
@@ -1343,12 +1395,18 @@ function Stat({ icon: Icon, label, value, tone }: { icon: any; label: string; va
     tone === "water"   ? "text-water" :
     tone === "nutrient"? "text-nutrient" :
     tone === "pest"    ? "text-pest" : "text-foreground";
+  const borderColor = 
+    tone === "healthy" ? "border-healthy/30 bg-healthy/5" :
+    tone === "disease" ? "border-disease/30 bg-disease/5" :
+    tone === "water"   ? "border-water/30 bg-water/5" :
+    tone === "nutrient"? "border-nutrient/30 bg-nutrient/5" :
+    tone === "pest"    ? "border-pest/30 bg-pest/5" : "border-border";
   return (
-    <div className="rounded-xl border border-border p-2.5">
+    <div className={`rounded-xl border p-2.5 transition-all duration-300 hover:scale-[1.02] ${borderColor}`}>
       <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
-        <Icon className={`h-3 w-3 ${c}`} /> {label}
+        <Icon className={`h-3.5 w-3.5 ${c}`} /> {label}
       </div>
-      <div className={`mt-0.5 text-xs font-bold ${c}`}>{value}</div>
+      <div className={`mt-1 text-sm font-black ${c}`}>{value}</div>
     </div>
   );
 }

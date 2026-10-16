@@ -100,29 +100,29 @@ export function NdmiExplanationPanel({ villageName, villageAnalysis }: NdmiExpla
   const [expertMode, setExpertMode] = useState(false);
 
   return (
-    <div className="bg-white text-slate-800 p-6 xl:p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] animate-in fade-in duration-500 space-y-10 border border-slate-100">
+    <div className="bg-card text-card-foreground p-6 xl:p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] animate-in fade-in duration-500 space-y-10 border border-border">
       
       {/* HEADER */}
-      <header className="border-b border-slate-100 pb-6">
+      <header className="border-b border-border pb-6">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-3">
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-3">
               <Droplets className="h-8 w-8 text-blue-500" />
               Live Moisture Distribution Map
             </h1>
-            <p className="mt-2 text-lg text-slate-500">
+            <p className="mt-2 text-lg text-muted-foreground">
               Generated from Sentinel-2 Bands 8 and 11 using Copernicus Data for <strong className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{displayVillage}</strong>.
             </p>
           </div>
           
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-sm shadow-sm flex flex-col gap-1 min-w-[200px]">
+          <div className="bg-accent/30 p-3 rounded-xl border border-border text-sm shadow-sm flex flex-col gap-1 min-w-[200px]">
             <div className="flex justify-between items-center">
-              <span className="text-slate-500">Date:</span>
+              <span className="text-muted-foreground">Date:</span>
               <span className="font-semibold">{data.date}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-slate-500">Source:</span>
-              <span className="font-mono text-xs bg-white px-1.5 py-0.5 rounded border border-slate-200">{data.product}</span>
+              <span className="text-muted-foreground">Source:</span>
+              <span className="font-mono text-xs bg-card px-1.5 py-0.5 rounded border border-border">{data.product}</span>
             </div>
           </div>
         </div>
@@ -130,9 +130,9 @@ export function NdmiExplanationPanel({ villageName, villageAnalysis }: NdmiExpla
 
       {/* VILLAGE-SPECIFIC INSIGHTS */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <div className="text-sm font-semibold text-slate-500 mb-1">Selected Village</div>
-          <div className="text-2xl font-bold text-slate-900">{displayVillage}</div>
+        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+          <div className="text-sm font-semibold text-muted-foreground mb-1">Selected Village</div>
+          <div className="text-2xl font-bold text-foreground">{displayVillage}</div>
         </div>
         
         <div className={`${data.bgColor} border ${data.borderColor} rounded-2xl p-5 shadow-sm`}>
@@ -140,14 +140,14 @@ export function NdmiExplanationPanel({ villageName, villageAnalysis }: NdmiExpla
           <div className={`text-2xl font-bold ${data.baseColor}`}>{data.status}</div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm relative overflow-hidden">
           <div className="absolute right-0 bottom-0 opacity-10"><Droplets className="h-24 w-24 -mr-4 -mb-4" /></div>
-          <div className="text-sm font-semibold text-slate-500 mb-1">Water Availability</div>
-          <div className="text-3xl font-black text-slate-800">{data.availability}%</div>
+          <div className="text-sm font-semibold text-muted-foreground mb-1">Water Availability</div>
+          <div className="text-3xl font-black text-foreground">{data.availability}%</div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm text-white">
-          <div className="text-sm font-semibold text-slate-400 mb-1">Recommended Action</div>
+        <div className="bg-foreground border border-foreground rounded-2xl p-5 shadow-sm text-background">
+          <div className="text-sm font-semibold opacity-80 mb-1">Recommended Action</div>
           <div className="text-lg font-bold text-emerald-400 flex items-start gap-2">
             <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
             {data.action}
@@ -158,20 +158,20 @@ export function NdmiExplanationPanel({ villageName, villageAnalysis }: NdmiExpla
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         
         {/* REAL VILLAGE VISUALIZATION (MAP OVERLAY) */}
-        <section className="xl:col-span-2 bg-slate-50 rounded-2xl p-6 border border-slate-200 shadow-inner flex flex-col relative">
+        <section className="xl:col-span-2 bg-accent/30 rounded-2xl p-6 border border-border shadow-inner flex flex-col relative">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
+            <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
               <MapIcon className="h-5 w-5 text-blue-500" /> Real-time NDMI Field Overlay
             </h2>
             <button 
               onClick={() => setExpertMode(!expertMode)}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${expertMode ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${expertMode ? 'bg-foreground text-background' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}
             >
               {expertMode ? "Expert Mode: ON" : "Expert Mode: OFF"}
             </button>
           </div>
           
-          <div className="flex-1 relative rounded-xl overflow-hidden bg-slate-200 border border-slate-300 min-h-[400px]">
+          <div className="flex-1 relative rounded-xl overflow-hidden bg-muted border border-border min-h-[400px]">
             {/* Real Sentinel-2 True Color Base Layer */}
             {villageAnalysis?.trueColorImageUrl ? (
               <img src={villageAnalysis.trueColorImageUrl} className="absolute inset-0 w-full h-full object-fill pointer-events-none opacity-40 mix-blend-luminosity" alt="Sentinel-2 Base" />
@@ -198,47 +198,47 @@ export function NdmiExplanationPanel({ villageName, villageAnalysis }: NdmiExpla
 
             {/* Field Detail Pop-up */}
             {selectedField && (
-              <div className="absolute top-4 right-4 bg-white/95 backdrop-blur shadow-xl border border-slate-200 rounded-xl p-4 w-72 animate-in fade-in slide-in-from-right-4 z-50">
-                <div className="flex justify-between items-start mb-2 border-b border-slate-100 pb-2">
+              <div className="absolute top-4 right-4 bg-card/95 backdrop-blur shadow-xl border border-border rounded-xl p-4 w-72 animate-in fade-in slide-in-from-right-4 z-50">
+                <div className="flex justify-between items-start mb-2 border-b border-border/50 pb-2">
                   <div>
-                    <h3 className="font-bold text-slate-900">{selectedField.name}</h3>
-                    <span className="text-xs text-slate-500">Selected Area</span>
+                    <h3 className="font-bold text-foreground">{selectedField.name}</h3>
+                    <span className="text-xs text-muted-foreground">Selected Area</span>
                   </div>
-                  <button onClick={() => setSelectedField(null)} className="text-slate-400 hover:text-slate-700 bg-slate-100 rounded-full p-1"><svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+                  <button onClick={() => setSelectedField(null)} className="text-muted-foreground hover:text-foreground bg-accent rounded-full p-1"><svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
                 </div>
                 
                 {expertMode ? (
                   <div className="space-y-2 text-xs mt-3 font-mono">
-                    <div className="flex justify-between text-slate-600"><span className="font-sans">Band 8 Mean</span> <span>{villageAnalysis?.b8?.toFixed(4) || "N/A"}</span></div>
-                    <div className="flex justify-between text-slate-600"><span className="font-sans">Band 11 Mean</span> <span>{villageAnalysis?.b11?.toFixed(4) || "N/A"}</span></div>
-                    <div className="flex justify-between text-slate-800 font-bold border-t border-slate-100 pt-1 mt-1"><span className="font-sans">NDMI Mean</span> <span>{selectedField.ndmi.toFixed(4)}</span></div>
-                    <div className="flex justify-between text-slate-600"><span className="font-sans">NDMI Min</span> <span>{villageAnalysis?.ndmiMin?.toFixed(4) || "N/A"}</span></div>
-                    <div className="flex justify-between text-slate-600"><span className="font-sans">NDMI Max</span> <span>{villageAnalysis?.ndmiMax?.toFixed(4) || "N/A"}</span></div>
-                    <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-100"><span className="font-sans">Acquisition</span> <span className="truncate max-w-[120px]">{date}</span></div>
-                    <div className="flex justify-between text-slate-600"><span className="font-sans">Product ID</span> <span className="truncate max-w-[120px]" title={product}>{product}</span></div>
-                    <div className="flex justify-between text-slate-600"><span className="font-sans">Cloud Cover</span> <span>{villageAnalysis?.copernicusMetadata?.cloudCover || "N/A"}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span className="font-sans">Band 8 Mean</span> <span>{villageAnalysis?.b8?.toFixed(4) || "N/A"}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span className="font-sans">Band 11 Mean</span> <span>{villageAnalysis?.b11?.toFixed(4) || "N/A"}</span></div>
+                    <div className="flex justify-between text-foreground font-bold border-t border-border/50 pt-1 mt-1"><span className="font-sans">NDMI Mean</span> <span>{selectedField.ndmi.toFixed(4)}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span className="font-sans">NDMI Min</span> <span>{villageAnalysis?.ndmiMin?.toFixed(4) || "N/A"}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span className="font-sans">NDMI Max</span> <span>{villageAnalysis?.ndmiMax?.toFixed(4) || "N/A"}</span></div>
+                    <div className="flex justify-between text-muted-foreground pt-2 border-t border-border/50"><span className="font-sans">Acquisition</span> <span className="truncate max-w-[120px]">{date}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span className="font-sans">Product ID</span> <span className="truncate max-w-[120px]" title={product}>{product}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span className="font-sans">Cloud Cover</span> <span>{villageAnalysis?.copernicusMetadata?.cloudCover || "N/A"}</span></div>
                   </div>
                 ) : (
                   <div className="space-y-2 text-sm mt-3">
                     <div className="flex justify-between">
-                      <span className="text-slate-500">Village</span>
-                      <span className="font-medium text-slate-800">{displayVillage}</span>
+                      <span className="text-muted-foreground">Village</span>
+                      <span className="font-medium text-foreground">{displayVillage}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">Water Status</span>
+                      <span className="text-muted-foreground">Water Status</span>
                       <span className={`font-semibold ${selectedField.status === 'Critical Stress' || selectedField.status === 'Dry Area' ? 'text-red-500' : 'text-blue-600'}`}>{selectedField.status}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">NDMI</span>
-                      <span className="font-bold text-slate-800">{selectedField.ndmi.toFixed(2)}</span>
+                      <span className="text-muted-foreground">NDMI</span>
+                      <span className="font-bold text-foreground">{selectedField.ndmi.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">Area</span>
-                      <span className="font-medium text-slate-800">{selectedField.area}</span>
+                      <span className="text-muted-foreground">Area</span>
+                      <span className="font-medium text-foreground">{selectedField.area}</span>
                     </div>
-                    <div className="mt-3 pt-3 border-t border-slate-100">
-                      <span className="block text-xs text-slate-500 mb-1">Recommendation</span>
-                      <span className="font-medium text-slate-800 text-xs">
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <span className="block text-xs text-muted-foreground mb-1">Recommendation</span>
+                      <span className="font-medium text-foreground text-xs">
                         {selectedField.status === 'Critical Stress' ? 'Emergency irrigation required.' : 
                          selectedField.status === 'Dry Area' ? 'Irrigate immediately.' : 
                          selectedField.status === 'Moderate Moisture' ? 'Irrigate within 3 days.' :

@@ -59,21 +59,13 @@ export function useVillageSearch() {
         searchData = await villageSearchApi.searchVillage(villageName);
       }
 
-      const [satData, analysisData] = await Promise.all([
-        villageSearchApi.getLatestSatellite(searchData.latitude, searchData.longitude),
-        villageSearchApi.getVillageAnalysis(
-          finalVillageName,
-          searchData.latitude,
-          searchData.longitude,
-        ),
-      ]);
+      const analysisData = await villageSearchApi.getVillageAnalysis(
+        finalVillageName,
+        searchData.latitude,
+        searchData.longitude,
+      );
 
-      const enrichedAnalysis = {
-        ...analysisData,
-        imageUrl: satData.imageUrl || analysisData.imageUrl,
-        captureDate: satData.captureDate || analysisData.captureDate,
-        source: satData.source || analysisData.source,
-      };
+      const enrichedAnalysis = analysisData;
 
 
       let realFields: ReturnType<typeof buildFieldFromCopernicusPolygon>[] = [];

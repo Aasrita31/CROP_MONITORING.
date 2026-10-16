@@ -74,15 +74,15 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
   }, []);
 
   return (
-    <div className="bg-white text-slate-800 p-6 xl:p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] animate-in fade-in duration-500 space-y-10 border border-slate-100">
+    <div className="bg-card text-card-foreground p-6 xl:p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] animate-in fade-in duration-500 space-y-10 border border-border">
       
       {/* SECTION 1: TITLE */}
-      <header className="border-b border-slate-100 pb-6 text-center xl:text-left">
-        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 flex items-center justify-center xl:justify-start gap-3">
+      <header className="border-b border-border pb-6 text-center xl:text-left">
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground flex items-center justify-center xl:justify-start gap-3">
           <Leaf className="h-8 w-8 text-emerald-500" />
           How Crop Health is Measured from Space
         </h1>
-        <p className="mt-3 text-lg text-slate-500 max-w-3xl">
+        <p className="mt-3 text-lg text-muted-foreground max-w-3xl">
           Real Sentinel-2 satellite imagery is used to measure vegetation health for <strong className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">{displayVillage}</strong>.
         </p>
         {/* Auto-fetching notice */}
@@ -97,22 +97,22 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* SECTION 2: SENTINEL-2 VISUAL EXPLANATION */}
-        <section className="bg-slate-50 rounded-2xl p-6 border border-slate-200 shadow-inner relative overflow-hidden group">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-800">
+        <section className="bg-accent/30 rounded-2xl p-6 border border-border shadow-inner relative overflow-hidden group">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-foreground">
             <Sun className="h-5 w-5 text-amber-500" /> Satellite Light Interaction
           </h2>
           
-          <div className="relative h-64 w-full bg-white rounded-xl border border-slate-100 flex items-end justify-center pb-4">
+          <div className="relative h-64 w-full bg-card rounded-xl border border-border flex items-end justify-center pb-4">
             {/* Sun */}
             <div className="absolute top-4 left-4 flex flex-col items-center">
               <Sun className="h-10 w-10 text-amber-400 animate-[spin_10s_linear_infinite]" />
-              <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">Sunlight</span>
+              <span className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-wider">Sunlight</span>
             </div>
 
             {/* Satellite */}
             <div className="absolute top-4 right-4 flex flex-col items-center">
-              <Satellite className="h-8 w-8 text-slate-400 group-hover:text-emerald-500 transition-colors" />
-              <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">Sentinel-2</span>
+              <Satellite className="h-8 w-8 text-muted-foreground group-hover:text-emerald-500 transition-colors" />
+              <span className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-wider">Sentinel-2</span>
             </div>
 
             {/* Light Rays */}
@@ -142,33 +142,33 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
                 <Leaf className="h-16 w-16" fill="currentColor" />
               </div>
               <div className="w-16 h-2 bg-amber-900 rounded-full mt-1 opacity-20"></div>
-              <span className="text-sm font-semibold mt-2 text-slate-700">Paddy Plant</span>
+              <span className="text-sm font-semibold mt-2 text-foreground">Paddy Plant</span>
             </div>
           </div>
         </section>
 
         {/* SECTION 3: LIVE SENTINEL-2 VALUES */}
-        <section className="bg-slate-50 rounded-2xl p-6 border border-slate-200 shadow-inner flex flex-col justify-between">
+        <section className="bg-accent/30 rounded-2xl p-6 border border-border shadow-inner flex flex-col justify-between">
           <div>
-            <h2 className="text-xl font-bold mb-2 flex items-center gap-2 text-slate-800">
+            <h2 className="text-xl font-bold mb-2 flex items-center gap-2 text-foreground">
               <Satellite className="h-5 w-5 text-blue-500" /> Live Sentinel-2 Values
             </h2>
-            <p className="text-sm text-slate-500 mb-6">Actual spectral band reflections for the current village.</p>
+            <p className="text-sm text-muted-foreground mb-6">Actual spectral band reflections for the current village.</p>
           </div>
           
-          <div className="bg-white rounded-xl p-5 border border-slate-100 shadow-sm mb-6">
+          <div className="bg-card rounded-xl p-5 border border-border shadow-sm mb-6">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-slate-400 block mb-1">Selected Village</span>
-                <strong className="text-slate-800 text-lg">{displayVillage}</strong>
+                <span className="text-muted-foreground block mb-1">Selected Village</span>
+                <strong className="text-foreground text-lg">{displayVillage}</strong>
               </div>
               <div>
-                <span className="text-slate-400 block mb-1">Acquisition Date</span>
-                <strong className="text-slate-800">{data.date}</strong>
+                <span className="text-muted-foreground block mb-1">Acquisition Date</span>
+                <strong className="text-foreground">{data.date}</strong>
               </div>
-              <div className="col-span-2 pt-3 border-t border-slate-50">
-                <span className="text-slate-400 block mb-1">Sentinel-2 Product</span>
-                <code className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">{data.product}</code>
+              <div className="col-span-2 pt-3 border-t border-border/50">
+                <span className="text-muted-foreground block mb-1">Sentinel-2 Product</span>
+                <code className="text-xs bg-accent px-2 py-1 rounded text-muted-foreground">{data.product}</code>
               </div>
             </div>
           </div>
@@ -239,8 +239,8 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
       {/* SECTION 5: NDVI COLOR REPRESENTATION & SECTION 6: PICTORIAL */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        <section className="bg-slate-50 rounded-2xl p-6 border border-slate-200 shadow-inner">
-          <h2 className="text-xl font-bold mb-6 text-slate-800">NDVI Health Scale</h2>
+        <section className="bg-accent/30 rounded-2xl p-6 border border-border shadow-inner">
+          <h2 className="text-xl font-bold mb-6 text-foreground">NDVI Health Scale</h2>
           
           <div className="relative pt-8 pb-12">
             {/* Scale Bar */}
@@ -265,22 +265,22 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
                 className="absolute top-4 -mt-1 flex flex-col items-center transition-all duration-1000 ease-out"
                 style={{ left: `${Math.max(0, Math.min(100, ndvi! * 100))}%`, transform: 'translateX(-50%)' }}
               >
-                <div className="bg-slate-800 text-white text-xs font-bold py-1 px-2 rounded shadow-lg whitespace-nowrap mb-1">
+                <div className="bg-foreground text-background text-xs font-bold py-1 px-2 rounded shadow-lg whitespace-nowrap mb-1">
                   {displayVillage}: {ndvi!.toFixed(2)}
                 </div>
-                <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-slate-800"></div>
+                <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-foreground"></div>
               </div>
             )}
           </div>
         </section>
 
         {/* SECTION 6: PICTORIAL REPRESENTATION */}
-        <section className="bg-slate-50 rounded-2xl p-6 border border-slate-200 shadow-inner flex flex-col items-center justify-center text-center">
-          <h2 className="text-xl font-bold mb-4 w-full text-left text-slate-800">Crop Canopy Condition</h2>
+        <section className="bg-accent/30 rounded-2xl p-6 border border-border shadow-inner flex flex-col items-center justify-center text-center">
+          <h2 className="text-xl font-bold mb-4 w-full text-left text-foreground">Crop Canopy Condition</h2>
           
           <div className="flex items-center justify-center h-32 w-full">
             {!hasData ? (
-              <div className="text-slate-400 font-bold text-sm">Select a village to view canopy condition</div>
+              <div className="text-muted-foreground font-bold text-sm">Select a village to view canopy condition</div>
             ) : ndvi! >= 0.75 ? (
               <div className="flex flex-col items-center animate-in zoom-in duration-500">
                 <div className="relative">
@@ -309,29 +309,29 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* SECTION 7: FARMER INTERPRETATION */}
-        <section className="lg:col-span-2 bg-emerald-50 rounded-2xl p-6 border border-emerald-100 shadow-sm relative overflow-hidden">
+        <section className="lg:col-span-2 bg-emerald-500/10 rounded-2xl p-6 border border-emerald-500/20 shadow-sm relative overflow-hidden">
           <div className="absolute right-0 top-0 opacity-10 pointer-events-none transform translate-x-1/4 -translate-y-1/4">
-             <Leaf className="h-48 w-48" />
+             <Leaf className="h-48 w-48 text-emerald-500" />
           </div>
           
-          <h2 className="text-xl font-bold mb-4 text-emerald-900">Farmer Interpretation</h2>
+          <h2 className="text-xl font-bold mb-4 text-emerald-700 dark:text-emerald-400">Farmer Interpretation</h2>
           
           <div className="space-y-4 relative z-10">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-white/60 p-4 rounded-xl border border-emerald-100/50">
-              <span className="text-emerald-800 font-semibold w-32">Crop Health:</span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-card/60 p-4 rounded-xl border border-emerald-500/20">
+              <span className="text-emerald-700 dark:text-emerald-400 font-semibold w-32">Crop Health:</span>
               <span className={`px-3 py-1 rounded-full font-bold text-sm inline-block ${getColor(ndvi)}`}>
                 {data.status}
               </span>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-3 bg-white/60 p-4 rounded-xl border border-emerald-100/50">
-              <span className="text-emerald-800 font-semibold w-32 shrink-0">What it means:</span>
-              <span className="text-slate-700">{data.desc}</span>
+            <div className="flex flex-col sm:flex-row gap-3 bg-card/60 p-4 rounded-xl border border-emerald-500/20">
+              <span className="text-emerald-700 dark:text-emerald-400 font-semibold w-32 shrink-0">What it means:</span>
+              <span className="text-foreground">{data.desc}</span>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-3 bg-white/60 p-4 rounded-xl border border-emerald-100/50">
-              <span className="text-emerald-800 font-semibold w-32 shrink-0">Action needed:</span>
-              <span className="text-slate-800 font-bold flex items-start gap-2">
+            <div className="flex flex-col sm:flex-row gap-3 bg-card/60 p-4 rounded-xl border border-emerald-500/20">
+              <span className="text-emerald-700 dark:text-emerald-400 font-semibold w-32 shrink-0">Action needed:</span>
+              <span className="text-foreground font-bold flex items-start gap-2">
                 <ArrowRight className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
                 {data.action}
               </span>
@@ -340,12 +340,12 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
         </section>
 
         {/* SECTION 8: NDVI MAP OVERLAY */}
-        <section className="bg-slate-50 rounded-2xl p-6 border border-slate-200 shadow-inner flex flex-col h-full">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-800">
+        <section className="bg-accent/30 rounded-2xl p-6 border border-border shadow-inner flex flex-col h-full">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-foreground">
             <MapIcon className="h-5 w-5 text-blue-500" /> Regional NDVI Map
           </h2>
           
-          <div className="flex-1 relative rounded-xl overflow-hidden bg-slate-200 border border-slate-300 min-h-[200px] flex items-center justify-center group">
+          <div className="flex-1 relative rounded-xl overflow-hidden bg-muted border border-border min-h-[200px] flex items-center justify-center group">
             {/* Real Sentinel-2 True Color Base Layer */}
             {villageAnalysis?.trueColorImageUrl ? (
               <img src={villageAnalysis.trueColorImageUrl} className="absolute inset-0 w-full h-full object-fill pointer-events-none opacity-40 mix-blend-luminosity" alt="Sentinel-2 Base" />
@@ -369,7 +369,7 @@ export function NdviExplanationPanel({ villageName, villageAnalysis }: NdviExpla
             </div>
             
             {/* Mini Legend */}
-            <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur p-1.5 rounded shadow text-[9px] flex flex-col gap-1 z-20 border border-slate-200">
+            <div className="absolute bottom-2 right-2 bg-card/90 backdrop-blur p-1.5 rounded shadow text-[9px] flex flex-col gap-1 z-20 border border-border">
               <div className="flex items-center gap-1"><div className="w-2 h-2 bg-emerald-500 rounded-sm"></div> Healthy</div>
               <div className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-400 rounded-sm"></div> Moderate</div>
               <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-sm"></div> Stress</div>

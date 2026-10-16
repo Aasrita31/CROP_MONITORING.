@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Ensure project root (backend) is on sys.path so `app` can be imported from any working directory
+backend_dir = str(Path(__file__).resolve().parent.parent)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -26,9 +34,11 @@ app.add_middleware(
         "http://127.0.0.1:8080",
         "http://localhost:3000",
         "http://localhost:5173",
+        "http://localhost:8081",
+        "http://127.0.0.1:8081",
         "http://10.26.86.228:8080",
     ],
-    allow_origin_regex="https://.*\\.ngrok-free\\.(dev|app)",
+    allow_origin_regex="https://.*\\.(vercel\\.app|ngrok-free\\.(dev|app))",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,6 +49,19 @@ app.add_middleware(
 def on_startup():
     # Create all tables if they don't exist
     Base.metadata.create_all(bind=engine)
+    
+    # Run dynamic schema migrations for new columns
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            # SQLite doesn't support adding multiple columns in one statement, so we run them individually
+            conn.execute(text("ALTER TABLE farmer_fields ADD COLUMN walking_distance FLOAT"))
+            conn.execute(text("ALTER TABLE farmer_fields ADD COLUMN mapping_duration INTEGER"))
+            conn.execute(text("ALTER TABLE farmer_fields ADD COLUMN average_gps_accuracy FLOAT"))
+            conn.commit()
+    except Exception as e:
+        # Columns already exist or database not initialized yet
+        pass
     
     # Run seeder
     db = SessionLocal()

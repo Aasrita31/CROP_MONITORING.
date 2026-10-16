@@ -221,9 +221,9 @@ export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
             
             <div className="flex flex-col items-center text-center">
               <div className="flex items-center gap-1">
-                <h1 className="text-xs sm:text-lg md:text-[25px] font-extrabold tracking-tight leading-none animate-text-glow" style={{ fontFamily: "'Poppins', 'Outfit', 'Inter', sans-serif" }}>
+                <h1 className="text-sm sm:text-lg md:text-[25px] font-extrabold tracking-tight leading-none animate-text-glow" style={{ fontFamily: "'Poppins', 'Outfit', 'Inter', sans-serif" }}>
                   <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 via-teal-600 to-teal-500 dark:from-green-400 dark:via-lime-400 dark:via-yellow-300 dark:to-teal-400 bg-clip-text text-transparent animate-title-gradient">
-                    AgriTwin Intelligence
+                    AgriTwin<span className="hidden sm:inline"> Intelligence</span>
                   </span>
                 </h1>
                 <span className="relative flex h-1.5 w-1.5 ml-0.5">
@@ -231,7 +231,7 @@ export function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500 shadow-[0_0_10px_#10b981]"></span>
                 </span>
               </div>
-              <p className="text-[8px] md:text-[11.5px] font-medium tracking-[0.05em] text-emerald-600 dark:text-emerald-300/80 mt-0.5 leading-none animate-fade-in">
+              <p className="hidden sm:block text-[8px] md:text-[11.5px] font-medium tracking-[0.05em] text-emerald-600 dark:text-emerald-300/80 mt-0.5 leading-none animate-fade-in">
                 Smart Insights. Strong Harvests.
               </p>
             </div>

@@ -94,6 +94,22 @@ function MapSearchBox({
           className={`flex-1 bg-transparent text-sm ${isDark ? 'text-white' : 'text-foreground'} outline-none`}
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
+          onKeyDown={async (e) => {
+            if (e.key === "Enter" && searchQuery.trim()) {
+              e.preventDefault();
+              setIsLoading(true);
+              try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`);
+                const data = await res.json();
+                if (data && data.length > 0) {
+                  handleSelect(data[0]);
+                }
+              } catch (err) {
+                console.error("Location search failed", err);
+              }
+              setIsLoading(false);
+            }
+          }}
           onFocus={() => { if(suggestions.length > 0) setShowSuggestions(true); }}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
         />
@@ -146,11 +162,19 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
-function MapFlyTo({ center }: { center: [number, number] }) {
+function MapFlyTo({ center, bounds, hasSearch }: { center: [number, number], bounds?: [[number, number], [number, number]], hasSearch?: boolean }) {
   const map = useMap();
   useEffect(() => {
-    map.flyTo(center, 13, { duration: 1.5 });
-  }, [center, map]);
+    if (hasSearch) {
+      if (bounds) {
+        map.flyToBounds(bounds, { duration: 1.5, padding: [20, 20] });
+      } else {
+        map.flyTo(center, 14, { duration: 1.5 });
+      }
+    } else {
+      map.flyTo([20.5937, 78.9629], 5, { duration: 1.5 });
+    }
+  }, [center, bounds, hasSearch, map]);
   return null;
 }
 
@@ -267,9 +291,10 @@ export function DashboardInteractiveMap({
 
   // Sync prop center/fields with local state when they change
   useEffect(() => {
-    setMapCenter(center);
-    setDynamicFields(enrichFields(fields, center));
-  }, [center, fields]);
+    const targetCenter = searchCoords || center;
+    setMapCenter(targetCenter);
+    setDynamicFields(enrichFields(fields, targetCenter));
+  }, [center, fields, searchCoords]);
 
   const handleLocationSelect = async (lat: number, lon: number, name: string, bbox?: string[]) => {
     setMapCenter([lat, lon]);
@@ -313,6 +338,7 @@ export function DashboardInteractiveMap({
 
       if (analysisData) {
         const villageLabel = name.split(",")[0].trim();
+        setVillageAnalysis(analysisData);
         applyVillageSearchResults({
           villageName: villageLabel,
           district: "",
@@ -348,14 +374,30 @@ export function DashboardInteractiveMap({
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden border border-border shadow-sm">
+      {/* Search Bar Overlay on Interactive Map */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] w-72 md:w-96 pointer-events-auto shadow-xl">
+        <MapSearchBox onSelectLocation={handleLocationSelect} theme="dark" />
+      </div>
+
       <MapContainer 
-        center={mapCenter} 
-        zoom={13} 
+        center={searchCoords || [20.5937, 78.9629]} 
+        zoom={searchCoords ? 14 : 5} 
         className="w-full h-full bg-[#1c2128]"
         zoomControl={false} // Custom zoom control position
         ref={mapRef}
       >
-        <MapFlyTo center={mapCenter} />
+        <MapFlyTo 
+          center={mapCenter} 
+          hasSearch={Boolean(searchCoords)}
+          bounds={
+            villageAnalysis?.boundingbox 
+              ? [
+                  [villageAnalysis.boundingbox[0], villageAnalysis.boundingbox[2]], 
+                  [villageAnalysis.boundingbox[1], villageAnalysis.boundingbox[3]]
+                ] 
+              : undefined
+          } 
+        />
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           attribution="Tiles &copy; Esri"
@@ -363,14 +405,38 @@ export function DashboardInteractiveMap({
           maxZoom={24}
         />
         
+        {/* Draw searched location boundary polygon */}
+        {villageAnalysis?.geojson && (
+          <Polygon
+            positions={
+              villageAnalysis.geojson.type === "Polygon"
+                ? villageAnalysis.geojson.coordinates[0].map((coord: number[]) => [coord[1], coord[0]])
+                : villageAnalysis.geojson.coordinates.map((poly: any) => poly[0].map((coord: number[]) => [coord[1], coord[0]]))
+            }
+            pathOptions={{
+              color: '#3b82f6',
+              weight: 3,
+              fillColor: '#3b82f6',
+              fillOpacity: 0.15,
+            }}
+          />
+        )}
+        
         {searchCoords && villageAnalysis?.imageUrl && (
           <ImageOverlay
             url={villageAnalysis.imageUrl}
-            bounds={[
-              [searchCoords[0] - 0.01, searchCoords[1] - 0.01],
-              [searchCoords[0] + 0.01, searchCoords[1] + 0.01]
-            ]}
-            opacity={activeLayer === 'ndvi' ? 0.8 : 0}
+            bounds={
+              villageAnalysis.boundingbox
+                ? [
+                    [villageAnalysis.boundingbox[0], villageAnalysis.boundingbox[2]],
+                    [villageAnalysis.boundingbox[1], villageAnalysis.boundingbox[3]]
+                  ]
+                : [
+                    [searchCoords[0] - 0.01, searchCoords[1] - 0.01],
+                    [searchCoords[0] + 0.01, searchCoords[1] + 0.01]
+                  ]
+            }
+            opacity={activeLayer === 'ndvi' || activeLayer === 'satellite' ? 0.75 : 0}
             className="transition-opacity duration-500"
           />
         )}
@@ -596,21 +662,21 @@ export function FloatingFieldPanel({ field, onClose }: { field: any, onClose: ()
       <div className="flex-1 overflow-y-auto p-4 space-y-5 scrollbar-thin">
         {/* Core Metrics Grid */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-accent/40 rounded-xl p-3 border border-border">
-            <div className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1"><Target className="h-3 w-3" /> Health Score</div>
-            <div className="text-2xl font-bold mt-1 text-healthy">{field.health}<span className="text-sm text-muted-foreground font-normal">/100</span></div>
+          <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/35 hover:scale-[1.02] transition-all">
+            <div className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1"><Target className="h-3 w-3 text-healthy" /> Health Score</div>
+            <div className="text-2xl font-black mt-1 text-healthy">{field.health}<span className="text-xs text-muted-foreground font-normal">/100</span></div>
           </div>
-          <div className="bg-accent/40 rounded-xl p-3 border border-border">
-            <div className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1"><Droplets className="h-3 w-3" /> Water Stress</div>
-            <div className="text-xl font-bold mt-1 text-water">{field.water}%</div>
+          <div className="bg-blue-500/5 rounded-xl p-3 border border-blue-500/35 hover:scale-[1.02] transition-all">
+            <div className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1"><Droplets className="h-3 w-3 text-water" /> Water Status</div>
+            <div className="text-2xl font-black mt-1 text-water">{field.water}%</div>
           </div>
-          <div className="bg-accent/40 rounded-xl p-3 border border-border">
-            <div className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1"><Bug className="h-3 w-3" /> Disease Prob.</div>
-            <div className="text-xl font-bold mt-1 text-disease">{field.disease}%</div>
+          <div className="bg-red-500/5 rounded-xl p-3 border border-red-500/35 hover:scale-[1.02] transition-all">
+            <div className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1"><Bug className="h-3 w-3 text-disease" /> Disease Prob.</div>
+            <div className="text-2xl font-black mt-1 text-disease">{field.disease}%</div>
           </div>
-          <div className="bg-accent/40 rounded-xl p-3 border border-border">
-            <div className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Est. Yield</div>
-            <div className="text-xl font-bold mt-1 text-foreground">{field.yield} <span className="text-xs">t/ha</span></div>
+          <div className="bg-lime-500/5 rounded-xl p-3 border border-lime-500/35 hover:scale-[1.02] transition-all">
+            <div className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1"><TrendingUp className="h-3 w-3 text-primary" /> Est. Yield</div>
+            <div className="text-2xl font-black mt-1 text-foreground">{field.yield} <span className="text-xs font-normal text-muted-foreground">t/ha</span></div>
           </div>
         </div>
 

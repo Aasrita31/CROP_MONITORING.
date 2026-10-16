@@ -128,7 +128,13 @@ function IndexCard({
   valueLabel: string; valueRaw: string; interpretation: string; children?: React.ReactNode;
 }) {
   return (
-    <div className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow space-y-3">
+    <div 
+      className="bg-card/75 backdrop-blur border rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all duration-300 space-y-3"
+      style={{ 
+        borderColor: `${badgeColor}35`, 
+        boxShadow: `0 4px 20px ${badgeColor}08`
+      }}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="text-2xl">{emoji}</span>
@@ -139,7 +145,7 @@ function IndexCard({
         </div>
         <div className="text-right shrink-0">
           <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{valueLabel}</div>
-          <div className="text-xl font-black" style={{ color: badgeColor }}>{valueRaw}</div>
+          <div className="text-xl font-black font-mono" style={{ color: badgeColor }}>{valueRaw}</div>
         </div>
       </div>
       {children}

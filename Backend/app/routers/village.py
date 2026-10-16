@@ -160,30 +160,53 @@ def search_village(payload: VillageSearchRequest, db: Session = Depends(get_db))
         return {
             "district": dist_name,
             "latitude": village.lat,
-            "longitude": village.lng
+            "longitude": village.lng,
+            "geojson": None,
+            "boundingbox": [village.lat - 0.01, village.lat + 0.01, village.lng - 0.01, village.lng + 0.01]
         }
         
     # 2. OSM Nominatim dynamic geocoding
     try:
         headers = {"User-Agent": "AgriTwin-Crop-Monitor/1.0"}
-        url = f"https://nominatim.openstreetmap.org/search?format=json&q={requests.utils.quote(village_name)}&limit=1"
+        url = f"https://nominatim.openstreetmap.org/search?format=json&q={requests.utils.quote(village_name)}&polygon_geojson=1&limit=5"
         res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             data = res.json()
             if data:
-                lat = float(data[0]["lat"])
-                lon = float(data[0]["lon"])
-                display_name = data[0]["display_name"]
+                # Find an administrative boundary polygon if available
+                match = None
+                for res_d in data:
+                    gtype = res_d.get("geojson", {}).get("type")
+                    if gtype in ["Polygon", "MultiPolygon"] and res_d.get("class") == "boundary":
+                        match = res_d
+                        break
+                if not match:
+                    for res_d in data:
+                        gtype = res_d.get("geojson", {}).get("type")
+                        if gtype in ["Polygon", "MultiPolygon"]:
+                            match = res_d
+                            break
+                if not match:
+                    match = data[0]
+
+                lat = float(match["lat"])
+                lon = float(match["lon"])
+                display_name = match["display_name"]
                 
                 district_name = "Krishna" # Default
-                for d in ["East Godavari", "West Godavari", "Krishna", "Konaseema", "Nellore", "Guntur", "Prakasam", "Chittoor", "Anantapur", "Kurnool", "Kadapa", "Visakhapatnam", "Srikakulam", "Vizianagaram"]:
+                for d in ["East Godavari", "West Godavari", "Krishna", "Konaseema", "Nellore", "Guntur", "Prakasam", "Chittoor", "Anantapur", "Kurnool", "Kadapa", "Visakhapatnam", "Srikakulam", "Vizianagaram", "Tirupati"]:
                     if d.lower() in display_name.lower():
                         district_name = d
                         break
+                # Map Tirupati/Sullurpeta to Nellore region
+                if district_name == "Tirupati":
+                    district_name = "Nellore"
                 return {
                     "district": district_name,
                     "latitude": lat,
-                    "longitude": lon
+                    "longitude": lon,
+                    "geojson": match.get("geojson"),
+                    "boundingbox": [float(x) for x in match["boundingbox"]]
                 }
     except Exception as e:
         print(f"Nominatim geocoding failed: {e}")
@@ -192,7 +215,9 @@ def search_village(payload: VillageSearchRequest, db: Session = Depends(get_db))
     return {
         "district": "Krishna",
         "latitude": 16.5,
-        "longitude": 80.6
+        "longitude": 80.6,
+        "geojson": None,
+        "boundingbox": [16.49, 16.51, 80.59, 80.61]
     }
 
 @analysis_router.get("/village", response_model=VillageAnalysisResult)
@@ -203,9 +228,12 @@ def get_analysis_village(
     longitude: float = None,
     db: Session = Depends(get_db),
 ):
-    # 1. Resolve location — prefer explicit geocoded coordinates from village search
+    # 1. Resolve location — prefer name search first to get the correct administrative bounding box and polygon
     location = None
-    if latitude is not None and longitude is not None:
+    if name:
+        location = SentinelService.get_village_location(name)
+        
+    if not location and latitude is not None and longitude is not None:
         delta = 0.01
         location = {
             "lat": latitude,
@@ -213,9 +241,7 @@ def get_analysis_village(
             "boundingbox": [latitude - delta, latitude + delta, longitude - delta, longitude + delta],
             "name": name or f"{latitude},{longitude}",
         }
-    elif name:
-        location = SentinelService.get_village_location(name)
-    elif village_id:
+    elif not location and village_id:
         village = db.query(Village).filter(Village.id == village_id).first()
         if village:
             location = SentinelService.get_village_location(village.name)
@@ -368,7 +394,9 @@ def get_analysis_village(
         "bounds": bands.get('bounds'),
         "fields": extracted_fields,
         "copernicusMetadata": copernicus_meta,
-        "bandwidthDetails": bandwidth_details
+        "bandwidthDetails": bandwidth_details,
+        "geojson": location.get("geojson"),
+        "boundingbox": location.get("boundingbox"),
     }
 
 

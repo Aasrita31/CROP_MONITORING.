@@ -70,6 +70,13 @@ export function ApRiceBowlSection() {
   const { riceBowlIndex, alerts, comparison, loading: dashLoading } = useDashboard();
   const { searchCoords, searchQuery, villageAnalysis } = useDashboardContext();
 
+  // Watch global search coords to center the map
+  useEffect(() => {
+    if (searchCoords) {
+      setMapTarget({ lat: searchCoords[0], lng: searchCoords[1], zoom: 13 });
+    }
+  }, [searchCoords]);
+
 
   // Find active village object
   const activeVillage = villages.find(v => v.id === selectedVillageId);
@@ -176,6 +183,48 @@ export function ApRiceBowlSection() {
                 </Polygon>
               );
             })}
+
+             {/* Render detailed fields of the searched village if available */}
+            {searchCoords && villageAnalysis?.fields && mapTarget.zoom >= 11.5 && villageAnalysis.fields.map((f: any, idx: number) => {
+              const coords = f.polygonCoords || f.coordinates;
+              if (!coords) return null;
+              
+              const isSelected = selectedFieldId === f.id;
+              const ndvi = f.mean_ndvi ?? 0.6;
+              const fillCol = getNdviColor(ndvi);
+
+              return (
+                <Polygon 
+                  key={`search-field-${f.id || idx}`}
+                  positions={coords}
+                  pathOptions={{ 
+                    color: isSelected ? '#ffffff' : '#475569', 
+                    weight: isSelected ? 3 : 1, 
+                    fillColor: fillCol, 
+                    fillOpacity: isSelected ? 0.85 : 0.65 
+                  }}
+                  eventHandlers={{ click: () => setSelectedFieldId(f.id || `search-f-${idx}`) }}
+                >
+                  <LeafletTooltip direction="top">
+                    <div className="font-bold text-xs">{f.name || `Field ${idx + 1}`}</div>
+                    <div className="text-[10px]">NDVI: {ndvi.toFixed(3)}</div>
+                  </LeafletTooltip>
+                </Polygon>
+              );
+            })}
+
+            {/* Render Searched Location Marker */}
+            {searchCoords && (
+              <Marker 
+                position={searchCoords} 
+                icon={L.divIcon({
+                  html: `<div class="flex flex-col items-center"><div class="text-[#84cc16] drop-shadow-md"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="white" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3" fill="white"></circle></svg></div><div class="mt-1 px-2 py-0.5 bg-black/60 backdrop-blur-md text-white text-[10px] font-semibold rounded border border-white/20 whitespace-nowrap shadow-sm">${searchQuery}</div></div>`,
+                  className: 'bg-transparent',
+                  iconSize: [160, 40],
+                  iconAnchor: [80, 24]
+                })}
+              />
+            )}
 
             {/* Render Villages (Markers when zoomed out, Fields when zoomed in) */}
             {villages.map(v => (
